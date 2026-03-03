@@ -1,0 +1,151 @@
+{
+  "projectType": "saas",
+  "projectName": "ZeroStarter",
+  "projectDescription": "A modern, type-safe, and high-performance SaaS starter template built with a monorepo architecture.",
+  "theme": "mint",
+  "primaryColor": "#3b82f6",
+  "lightColor": "#60a5fa",
+  "darkColor": "#2563eb",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/project-structure",
+              "core/type-safe-api",
+              "core/scripts"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/authentication",
+              "features/database",
+              "features/analytics",
+              "features/ui-components"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/roadmap",
+              "development/contributing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Management",
+        "groups": [
+          {
+            "group": "Configuration",
+            "pages": [
+              "management/environment",
+              "management/code-quality"
+            ]
+          },
+          {
+            "group": "Content",
+            "pages": [
+              "management/blog",
+              "management/documentation",
+              "management/feedback"
+            ]
+          },
+          {
+            "group": "SEO & Analytics",
+            "pages": [
+              "management/analytics",
+              "management/sitemap",
+              "management/robots",
+              "management/llms-txt"
+            ]
+          },
+          {
+            "group": "Release",
+            "pages": [
+              "management/release"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Deployment",
+        "groups": [
+          {
+            "group": "Platforms",
+            "pages": [
+              "deployment/vercel",
+              "deployment/docker"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Developer Tools",
+            "pages": [
+              "resources/ai-skills",
+              "resources/ide-setup",
+              "resources/infisical"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/health",
+              "api/session",
+              "api/user"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Monorepo architecture with Turborepo and Bun runtime",
+    "End-to-end type safety with Hono RPC client",
+    "Next.js 16 frontend with Shadcn UI components",
+    "PostgreSQL database with Drizzle ORM",
+    "Better Auth with social provider integrations",
+    "PostHog analytics and feature flags",
+    "Auto-generated API documentation with Scalar",
+    "Production-ready deployment with Docker and Vercel",
+    "Built-in blog and documentation with Fumadocs",
+    "Type-safe environment variables with Zod validation"
+  ],
+  "publicApiSurface": [
+    "GET /api/health - System health check",
+    "GET /api/v1/session - Get current user session",
+    "GET /api/v1/user - Get current user profile",
+    "POST /api/auth/sign-in - User authentication",
+    "GET /api/docs - Interactive API documentation",
+    "Hono RPC Client - Type-safe API client for frontend"
+  ]
+}
