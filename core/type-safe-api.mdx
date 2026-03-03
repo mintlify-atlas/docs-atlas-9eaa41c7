@@ -1,0 +1,415 @@
+---
+title: Type-Safe API
+description: End-to-end type safety with Hono RPC - from backend to frontend
+---
+
+ZeroStarter achieves complete type safety between backend and frontend using [Hono RPC](https://hono.dev/docs/guides/rpc). This means TypeScript knows exactly what your API returns before you even make the request.
+
+## How It Works
+
+The type-safe API flow consists of three parts:
+
+<Steps>
+  <Step title="Backend exports AppType">
+    Routes defined in `api/hono/src/routers` are composed into a single `AppType` that describes the entire API surface.
+
+    ```typescript title="api/hono/src/index.ts" {120}
+    import { Hono } from "hono"
+    import { authRouter, v1Router } from "@/routers"
+
+    const app = new Hono()
+
+    const routes = app
+      .basePath("/api")
+      .get("/health", (c) => {
+        const data = { message: "ok" }
+        return c.json({ data })
+      })
+      .route("/auth", authRouter)
+      .route("/v1", v1Router)
+
+    // Export the app type for frontend consumption
+    export type AppType = typeof routes
+    ```
+  </Step>
+
+  <Step title="Frontend imports AppType">
+    The client infers request/response types from `AppType` using Hono's `hc` client.
+
+    ```typescript title="web/next/src/lib/api/client.ts" {1,6,8,18}
+    import type { AppType } from "@api/hono"
+    import { hc } from "hono/client"
+
+    import { config } from "@/lib/config"
+
+    type Client = ReturnType<typeof hc<AppType>>
+
+    const hcWithType = (...args: Parameters<typeof hc>): Client => hc<AppType>(...args)
+
+    const url = config.api.internalUrl ? config.api.internalUrl : config.api.url
+
+    const honoClient = hcWithType(url, {
+      init: {
+        credentials: "include",
+      },
+    })
+
+    export const apiClient = honoClient.api
+    ```
+  </Step>
+
+  <Step title="Use with full type safety">
+    Make API calls with autocomplete and type checking.
+
+    ```typescript
+    import { apiClient } from "@/lib/api/client"
+
+    // TypeScript knows the exact response shape!
+    const response = await apiClient.health.$get()
+    const { data } = await response.json()
+    //     ^? { message: string }
+    ```
+  </Step>
+</Steps>
+
+## API Client Usage
+
+### Basic GET Request
+
+The health check endpoint demonstrates a simple GET request:
+
+```typescript title="web/next/src/components/api-status.tsx"
+import { useQuery } from "@tanstack/react-query"
+import { apiClient } from "@/lib/api/client"
+
+export function ApiStatus() {
+  const { isLoading, isError } = useQuery({
+    queryKey: ["api-health"],
+    queryFn: async () => {
+      const res = await apiClient.health.$get()
+      if (!res.ok) {
+        throw new Error("Systems are facing issues")
+      }
+      return res.json()
+    },
+    refetchInterval: 30000,
+  })
+
+  // Component rendering...
+}
+```
+
+### Protected Routes with Authentication
+
+Access protected endpoints with automatic cookie-based authentication:
+
+<CodeGroup>
+```typescript title="Client Component"
+"use client"
+
+import { useQuery } from "@tanstack/react-query"
+import { apiClient } from "@/lib/api/client"
+
+export function UserProfile() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["user"],
+    queryFn: async () => {
+      const response = await apiClient.v1.user.$get()
+      if (!response.ok) throw new Error("Failed to fetch user")
+      return response.json()
+    },
+  })
+
+  if (isLoading) return <div>Loading...</div>
+
+  return <div>Welcome, {data?.data.name}!</div>
+}
+```
+
+```typescript title="Server Component"
+import { apiClient } from "@/lib/api/client"
+import { headers } from "next/headers"
+
+export default async function UserPage() {
+  const response = await apiClient.v1.user.$get(undefined, {
+    headers: Object.fromEntries((await headers()).entries()),
+  })
+
+  if (!response.ok) {
+    return <div>Please log in</div>
+  }
+
+  const { data } = await response.json()
+
+  return (
+    <div>
+      <h1>{data.name}</h1>
+      <p>{data.email}</p>
+    </div>
+  )
+}
+```
+</CodeGroup>
+
+### Session Management
+
+Retrieve the current user session:
+
+```typescript title="web/next/src/lib/auth/index.ts"
+import type { Session } from "@packages/auth"
+import { headers } from "next/headers"
+import { apiClient } from "@/lib/api/client"
+
+export const auth = {
+  api: {
+    getSession: async () => {
+      try {
+        const response = await apiClient.auth["get-session"].$get(undefined, {
+          headers: Object.fromEntries((await headers()).entries()),
+        })
+        if (!response.ok) return null
+        const text = await response.text()
+        if (!text) return null
+        return JSON.parse(text) as Session | null
+      } catch {
+        return null
+      }
+    },
+  },
+}
+```
+
+## Adding New Routes
+
+<Steps>
+  <Step title="Define route in backend">
+    Add your route to a router file:
+
+    ```typescript title="api/hono/src/routers/v1.ts"
+    import { Hono } from "hono"
+    import { describeRoute, resolver } from "hono-openapi"
+    import { z } from "zod"
+
+    export const v1Router = new Hono()
+      .get("/todos", (c) => {
+        const data = [
+          { id: 1, title: "Learn Hono RPC", completed: false },
+          { id: 2, title: "Build something awesome", completed: false },
+        ]
+        return c.json({ data })
+      })
+      .post("/todos", async (c) => {
+        const body = await c.req.json()
+        const data = { id: 3, ...body }
+        return c.json({ data })
+      })
+    ```
+  </Step>
+
+  <Step title="Types are automatically available">
+    No code generation needed - types flow instantly to the frontend:
+
+    ```typescript title="web/next/src/components/todos.tsx"
+    import { apiClient } from "@/lib/api/client"
+
+    // TypeScript autocompletes the route!
+    const response = await apiClient.v1.todos.$get()
+    const { data } = await response.json()
+    //     ^? Array<{ id: number; title: string; completed: boolean }>
+    ```
+  </Step>
+
+  <Step title="Use with TanStack Query">
+    ```typescript
+    "use client"
+
+    import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+    import { apiClient } from "@/lib/api/client"
+
+    export function TodoList() {
+      const queryClient = useQueryClient()
+
+      const { data } = useQuery({
+        queryKey: ["todos"],
+        queryFn: async () => {
+          const res = await apiClient.v1.todos.$get()
+          return res.json()
+        },
+      })
+
+      const createTodo = useMutation({
+        mutationFn: async (todo: { title: string; completed: boolean }) => {
+          const res = await apiClient.v1.todos.$post({ json: todo })
+          return res.json()
+        },
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["todos"] })
+        },
+      })
+
+      // Component rendering...
+    }
+    ```
+  </Step>
+</Steps>
+
+## Request Methods
+
+Hono RPC supports all HTTP methods:
+
+<CodeGroup>
+```typescript title="GET"
+// Simple GET
+const res = await apiClient.health.$get()
+
+// GET with query parameters
+const res = await apiClient.v1.todos.$get({
+  query: { status: "completed" }
+})
+```
+
+```typescript title="POST"
+// POST with JSON body
+const res = await apiClient.v1.todos.$post({
+  json: { title: "New todo", completed: false }
+})
+
+// POST with form data
+const formData = new FormData()
+formData.append("file", file)
+
+const res = await apiClient.v1.upload.$post({
+  form: formData
+})
+```
+
+```typescript title="PUT / PATCH"
+// PUT (full update)
+const res = await apiClient.v1.todos[":id"].$put({
+  param: { id: "1" },
+  json: { title: "Updated", completed: true }
+})
+
+// PATCH (partial update)
+const res = await apiClient.v1.todos[":id"].$patch({
+  param: { id: "1" },
+  json: { completed: true }
+})
+```
+
+```typescript title="DELETE"
+const res = await apiClient.v1.todos[":id"].$delete({
+  param: { id: "1" }
+})
+```
+</CodeGroup>
+
+## OpenAPI Documentation
+
+ZeroStarter automatically generates interactive API documentation using [Scalar](https://scalar.com).
+
+Access it at: **`/api/docs`**
+
+The documentation includes:
+- All routes with request/response schemas
+- Interactive request builder
+- Code samples for `hono/client`
+- Authentication support
+
+### Adding Documentation to Routes
+
+Use `describeRoute` to add OpenAPI metadata:
+
+```typescript title="api/hono/src/routers/v1.ts"
+import { describeRoute, resolver } from "hono-openapi"
+import { z } from "zod"
+
+export const v1Router = new Hono()
+  .get(
+    "/user",
+    describeRoute({
+      tags: ["v1"],
+      description: "Get current user only",
+      responses: {
+        200: {
+          description: "OK",
+          content: {
+            "application/json": {
+              schema: resolver(
+                z.object({
+                  data: z.object({
+                    id: z.string(),
+                    name: z.string(),
+                    email: z.string().email(),
+                  }),
+                })
+              ),
+            },
+          },
+        },
+      },
+    }),
+    (c) => {
+      const data = c.get("user")
+      return c.json({ data })
+    }
+  )
+```
+
+## Error Handling
+
+Handle API errors gracefully:
+
+```typescript
+import { apiClient } from "@/lib/api/client"
+
+try {
+  const response = await apiClient.v1.user.$get()
+  
+  if (!response.ok) {
+    // Handle HTTP errors
+    const error = await response.json()
+    throw new Error(error.error?.message || "Request failed")
+  }
+  
+  const { data } = await response.json()
+  // Use data...
+} catch (error) {
+  // Handle network errors
+  console.error("Failed to fetch user:", error)
+}
+```
+
+## Benefits
+
+<CardGroup cols={2}>
+  <Card title="No Code Generation" icon="wand-magic-sparkles">
+    Types flow instantly from backend to frontend without any build step or codegen
+  </Card>
+  <Card title="Autocomplete Everything" icon="sparkles">
+    Your IDE suggests routes, parameters, and response shapes as you type
+  </Card>
+  <Card title="Catch Errors Early" icon="shield-check">
+    Breaking changes in the API are caught at compile time, not runtime
+  </Card>
+  <Card title="Refactor with Confidence" icon="arrows-rotate">
+    Rename a route or change a response? TypeScript tells you everywhere it's used
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Routes" href="/api-reference/health" icon="route">
+    Explore available API endpoints
+  </Card>
+  <Card title="Authentication" href="/guides/authentication" icon="lock">
+    Learn about protected routes
+  </Card>
+  <Card title="TanStack Query" href="https://tanstack.com/query/latest" icon="link">
+    Master data fetching patterns
+  </Card>
+  <Card title="Hono Documentation" href="https://hono.dev/docs/guides/rpc" icon="book">
+    Deep dive into Hono RPC
+  </Card>
+</CardGroup>

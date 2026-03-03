@@ -1,0 +1,319 @@
+---
+title: 'Authentication'
+description: 'Better Auth integration and authentication endpoints in ZeroStarter'
+---
+
+## Overview
+
+ZeroStarter uses [Better Auth](https://better-auth.com/) for authentication, providing a secure and feature-rich authentication system. All authentication endpoints are mounted at `/api/auth/*`.
+
+## Better Auth Configuration
+
+The authentication system is configured in `packages/auth/src/index.ts`:
+
+```typescript packages/auth/src/index.ts
+import { betterAuth } from "better-auth"
+import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { openAPI, organization } from "better-auth/plugins"
+
+export const auth = betterAuth({
+  baseURL: env.HONO_APP_URL,
+  trustedOrigins: env.HONO_TRUSTED_ORIGINS,
+  database: drizzleAdapter(db, {
+    provider: "pg",
+    schema: {
+      account,
+      invitation,
+      member,
+      organization,
+      session,
+      team,
+      teamMember,
+      user,
+      verification,
+    },
+  }),
+  plugins: [
+    openAPIPlugin(),
+    organizationPlugin({
+      teams: { enabled: true },
+    }),
+  ],
+  socialProviders: {
+    github: {
+      clientId: env.GITHUB_CLIENT_ID,
+      clientSecret: env.GITHUB_CLIENT_SECRET,
+    },
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+    },
+  },
+})
+```
+
+## Authentication Endpoints
+
+All Better Auth endpoints are available under `/api/auth/*`. The router handles both GET and POST requests:
+
+```typescript api/hono/src/routers/auth.ts
+export const authRouter = new Hono()
+  .get("/get-session", (c) => auth.handler(c.req.raw))
+  .on(["GET", "POST"], "/*", (c) => auth.handler(c.req.raw))
+```
+
+### Core Endpoints
+
+<AccordionGroup>
+  <Accordion title="GET /api/auth/get-session" icon="user-check">
+    Retrieve the current authenticated session.
+
+    **Response:**
+    ```json
+    {
+      "session": {
+        "id": "session_id",
+        "userId": "user_id",
+        "expiresAt": "2026-01-28T13:06:25.712Z",
+        "token": "session_token"
+      },
+      "user": {
+        "id": "user_id",
+        "email": "user@example.com",
+        "name": "John Doe",
+        "emailVerified": true
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="POST /api/auth/sign-in/email" icon="envelope">
+    Sign in with email and password.
+
+    **Request Body:**
+    ```json
+    {
+      "email": "user@example.com",
+      "password": "your-password"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="POST /api/auth/sign-up/email" icon="user-plus">
+    Create a new account with email and password.
+
+    **Request Body:**
+    ```json
+    {
+      "email": "user@example.com",
+      "password": "your-password",
+      "name": "John Doe"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="POST /api/auth/sign-out" icon="arrow-right-from-bracket">
+    Sign out and invalidate the current session.
+
+    **Request Body:**
+    ```json
+    {}
+    ```
+  </Accordion>
+
+  <Accordion title="GET /api/auth/sign-in/github" icon="github">
+    Initiate GitHub OAuth flow. Redirects to GitHub for authorization.
+  </Accordion>
+
+  <Accordion title="GET /api/auth/sign-in/google" icon="google">
+    Initiate Google OAuth flow. Redirects to Google for authorization.
+  </Accordion>
+
+  <Accordion title="GET /api/auth/callback/github" icon="github">
+    GitHub OAuth callback endpoint. Handles the redirect from GitHub.
+  </Accordion>
+
+  <Accordion title="GET /api/auth/callback/google" icon="google">
+    Google OAuth callback endpoint. Handles the redirect from Google.
+  </Accordion>
+</AccordionGroup>
+
+## Better Auth API Reference
+
+Better Auth provides its own comprehensive API documentation. You can access it at:
+
+```
+GET /api/auth/reference
+```
+
+This endpoint provides a complete reference of all available authentication endpoints, including:
+
+- Email/password authentication
+- Social OAuth providers
+- Session management
+- Organization management
+- Team management
+- Email verification
+- Password reset
+- Account linking
+
+## Authentication Flow
+
+### Email/Password Sign Up
+
+<Steps>
+  <Step title="Submit registration form">
+    POST to `/api/auth/sign-up/email` with email, password, and name
+  </Step>
+  <Step title="Account created">
+    User account is created in the database
+  </Step>
+  <Step title="Session established">
+    Session cookie is set automatically
+  </Step>
+  <Step title="Redirect to dashboard">
+    User is redirected to the application
+  </Step>
+</Steps>
+
+### OAuth Sign In
+
+<Steps>
+  <Step title="Initiate OAuth flow">
+    Navigate to `/api/auth/sign-in/github` or `/api/auth/sign-in/google`
+  </Step>
+  <Step title="Provider authorization">
+    User authorizes the application on GitHub or Google
+  </Step>
+  <Step title="Callback handling">
+    Provider redirects to `/api/auth/callback/{provider}`
+  </Step>
+  <Step title="Account linking">
+    Account is created or linked to existing account
+  </Step>
+  <Step title="Session established">
+    Session cookie is set and user is redirected
+  </Step>
+</Steps>
+
+## Session Management
+
+Better Auth uses secure HTTP-only cookies for session management:
+
+- **Cookie Name**: Configurable via `cookiePrefix` (based on `HONO_APP_URL`)
+- **Cookie Domain**: Automatically configured for cross-subdomain support
+- **Security**: HTTP-only, Secure (in production), SameSite=Lax
+- **Expiration**: Configurable session duration
+
+### Session Schema
+
+```typescript
+interface Session {
+  id: string
+  userId: string
+  token: string
+  expiresAt: string
+  createdAt: string
+  updatedAt: string
+  ipAddress: string | null
+  userAgent: string | null
+}
+```
+
+## Organization & Team Support
+
+ZeroStarter includes the Better Auth organization plugin with team support:
+
+```typescript
+plugins: [
+  organizationPlugin({
+    teams: { enabled: true },
+  }),
+]
+```
+
+This enables:
+
+- Multi-tenant organizations
+- Team management within organizations
+- Role-based access control
+- Member invitations
+- Organization switching
+
+## Environment Variables
+
+Required environment variables for authentication:
+
+<ParamField path="HONO_APP_URL" type="string" required>
+  Base URL of your application (e.g., `https://app.example.com`)
+</ParamField>
+
+<ParamField path="HONO_TRUSTED_ORIGINS" type="string[]" required>
+  Array of trusted origins for CORS (e.g., `["https://app.example.com"]`)
+</ParamField>
+
+<ParamField path="GITHUB_CLIENT_ID" type="string">
+  GitHub OAuth application client ID
+</ParamField>
+
+<ParamField path="GITHUB_CLIENT_SECRET" type="string">
+  GitHub OAuth application client secret
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_ID" type="string">
+  Google OAuth application client ID
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_SECRET" type="string">
+  Google OAuth application client secret
+</ParamField>
+
+## Protected Routes
+
+Routes under `/api/v1/*` require authentication and use the `authMiddleware`:
+
+```typescript api/hono/src/routers/v1.ts
+export const v1Router = new Hono<{
+  Variables: Session
+}>()
+  .use("/*", authMiddleware)
+  // ... routes
+```
+
+The middleware:
+
+1. Validates the session cookie
+2. Retrieves the session and user from the database
+3. Injects `session` and `user` into the context
+4. Returns 401 Unauthorized if authentication fails
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="HTTP-Only Cookies" icon="cookie">
+    Sessions are stored in HTTP-only cookies, preventing XSS attacks
+  </Card>
+  <Card title="CORS Protection" icon="shield">
+    Only trusted origins can access the API
+  </Card>
+  <Card title="Secure Connections" icon="lock">
+    Production enforces HTTPS for all authentication requests
+  </Card>
+  <Card title="Rate Limiting" icon="gauge">
+    Authentication endpoints are rate-limited to prevent brute force
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Session API" icon="clock" href="/api/session">
+    Learn how to retrieve session data
+  </Card>
+  <Card title="User API" icon="user" href="/api/user">
+    Access authenticated user information
+  </Card>
+  <Card title="Better Auth Docs" icon="book" href="https://better-auth.com/docs">
+    Explore the full Better Auth documentation
+  </Card>
+</CardGroup>

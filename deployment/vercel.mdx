@@ -1,0 +1,297 @@
+---
+title: Deploy to Vercel
+description: Deploy your ZeroStarter frontend and backend to Vercel with this comprehensive guide.
+---
+
+## Overview
+
+ZeroStarter can be deployed to Vercel for both the frontend (Next.js) and backend (Hono) applications. This guide covers the deployment configuration for both parts of the monorepo.
+
+<Note>
+  Frontend and backend must be deployed as **two separate Vercel projects**. Each project has its own configuration, environment variables, and deployment lifecycle.
+</Note>
+
+## Prerequisites
+
+Before deploying to Vercel, ensure you have:
+
+- A [Vercel](https://vercel.com) account
+- Your repository pushed to GitHub, GitLab, or Bitbucket
+- A PostgreSQL database (e.g., [Neon](https://neon.tech), [Supabase](https://supabase.com), or Railway)
+- OAuth credentials (GitHub and/or Google)
+
+## Deployment Configuration
+
+### Backend Project (Hono API)
+
+ZeroStarter includes a `vercel.json` configuration for the Hono backend:
+
+```json api/hono/vercel.json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "hono",
+  "installCommand": "cd ../.. && bun install --ignore-scripts",
+  "buildCommand": "cd ../.. && turbo build --filter=@api/hono",
+  "outputDirectory": "dist",
+  "bunVersion": "1.3.7"
+}
+```
+
+<Note>
+  The build commands navigate to the repository root (`../..`) to leverage Turbo's monorepo build system.
+</Note>
+
+### Frontend Project (Next.js)
+
+The Next.js frontend also includes a `vercel.json` configuration:
+
+```json web/next/vercel.json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && bun install --ignore-scripts",
+  "buildCommand": "cd ../.. && turbo build --filter=@web/next",
+  "bunVersion": "1.3.7"
+}
+```
+
+## Deployment Steps
+
+<Steps>
+  <Step title="Deploy Backend First">
+    1. Go to your [Vercel dashboard](https://vercel.com/dashboard) and click "Add New Project"
+    2. Select your ZeroStarter repository
+    3. Set **Root Directory** to `api/hono`
+    4. Vercel will auto-detect the configuration from `vercel.json`
+    5. Add backend environment variables (see below)
+    6. Click "Deploy"
+    7. **Important**: Copy the deployment URL (e.g., `https://your-api.vercel.app`) - you'll need it for the frontend
+  </Step>
+
+  <Step title="Deploy Frontend">
+    1. Go to Vercel dashboard and click "Add New Project"
+    2. Select the **same** ZeroStarter repository
+    3. Set **Root Directory** to `web/next`
+    4. Add frontend environment variables (see below)
+    5. Use the backend URL from Step 1 for `NEXT_PUBLIC_API_URL`
+    6. Click "Deploy"
+  </Step>
+
+  <Step title="Update OAuth Callbacks">
+    Update your OAuth application settings with the production URLs:
+    
+    **GitHub OAuth**:
+    - Authorization callback URL: `https://your-api.vercel.app/api/auth/callback/github`
+    
+    **Google OAuth**:
+    - Authorized redirect URIs: `https://your-api.vercel.app/api/auth/callback/google`
+  </Step>
+</Steps>
+
+## Environment Variables
+
+### Backend Environment Variables
+
+Add these in your backend Vercel project settings:
+
+```bash
+# Environment
+NODE_ENV=production
+
+# Server Configuration
+HONO_APP_URL=https://your-api.vercel.app
+HONO_TRUSTED_ORIGINS=https://your-frontend.vercel.app
+HONO_RATE_LIMIT=60
+HONO_RATE_LIMIT_WINDOW_MS=60000
+
+# Authentication
+# Generate using: openssl rand -base64 32
+BETTER_AUTH_SECRET=your_secret_key_here
+
+# GitHub OAuth
+# Generate at: https://github.com/settings/developers
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+
+# Google OAuth
+# Generate at: https://console.cloud.google.com/apis/credentials
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Database
+POSTGRES_URL=your_postgres_connection_string
+```
+
+### Frontend Environment Variables
+
+Add these in your frontend Vercel project settings:
+
+```bash
+# Environment
+NODE_ENV=production
+
+# Application URLs
+NEXT_PUBLIC_APP_URL=https://your-frontend.vercel.app
+NEXT_PUBLIC_API_URL=https://your-api.vercel.app
+
+# Optional: PostHog Analytics
+NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+NEXT_PUBLIC_POSTHOG_KEY=your_posthog_key
+
+# Optional: User Feedback
+NEXT_PUBLIC_USERJOT_URL=your_userjot_url
+```
+
+<Warning>
+  Environment variables must be added separately to each project. Changes to one project do not affect the other.
+</Warning>
+
+## Build Configuration Reference
+
+### Backend (Hono)
+
+| Option           | Value                                                |
+| ---------------- | ---------------------------------------------------- |
+| Root Directory   | `api/hono`                                           |
+| Framework        | Hono                                                 |
+| Install Command  | `cd ../.. && bun install --ignore-scripts`           |
+| Build Command    | `cd ../.. && turbo build --filter=@api/hono`         |
+| Output Directory | `dist`                                               |
+| Bun Version      | `1.3.7`                                              |
+
+### Frontend (Next.js)
+
+| Option           | Value                                                |
+| ---------------- | ---------------------------------------------------- |
+| Root Directory   | `web/next`                                           |
+| Framework        | Next.js                                              |
+| Install Command  | `cd ../.. && bun install --ignore-scripts`           |
+| Build Command    | `cd ../.. && turbo build --filter=@web/next`         |
+| Output Directory | `.next` (auto-detected)                              |
+| Bun Version      | `1.3.7`                                              |
+
+## Custom Domains
+
+After successful deployment, configure custom domains:
+
+<Steps>
+  <Step title="Add Domain in Vercel">
+    1. Go to your project settings in Vercel
+    2. Navigate to "Domains"
+    3. Add your custom domain (e.g., `api.yourdomain.com` for backend, `yourdomain.com` for frontend)
+  </Step>
+
+  <Step title="Configure DNS">
+    Add the DNS records as instructed by Vercel (usually a CNAME or A record)
+  </Step>
+
+  <Step title="Update Environment Variables">
+    Update the following environment variables with your custom domains:
+    
+    **Backend**:
+    - `HONO_APP_URL`
+    - `HONO_TRUSTED_ORIGINS`
+    
+    **Frontend**:
+    - `NEXT_PUBLIC_APP_URL`
+    - `NEXT_PUBLIC_API_URL`
+  </Step>
+
+  <Step title="Update OAuth Callbacks">
+    Update OAuth callback URLs in GitHub/Google developer consoles with your custom domain URLs
+  </Step>
+</Steps>
+
+## Database Recommendations
+
+For production, use a managed PostgreSQL service with connection pooling:
+
+- **[Neon](https://neon.tech)** - Serverless Postgres with automatic scaling
+- **[Supabase](https://supabase.com)** - Postgres with real-time features and authentication
+- **[Railway](https://railway.app)** - Simple managed Postgres databases
+
+<Note>
+  ZeroStarter requires PostgreSQL. MySQL-compatible providers like PlanetScale are not supported without substantial schema and driver changes.
+</Note>
+
+## Monorepo Considerations
+
+### Turborepo Build Filtering
+
+The build commands use Turbo's `--filter` flag to build only the necessary packages:
+
+```bash
+# Backend build includes: @api/hono, @packages/auth, @packages/env, @packages/db
+turbo build --filter=@api/hono
+
+# Frontend build includes: @web/next, @api/hono, @packages/auth, @packages/env
+turbo build --filter=@web/next
+```
+
+### Shared Packages
+
+Both projects share these workspace packages:
+
+- `@packages/auth` - Better Auth configuration
+- `@packages/env` - Environment variable validation with Zod
+- `@packages/db` - Drizzle ORM schema and database utilities
+
+## Troubleshooting
+
+### Build Fails with "Module not found"
+
+Ensure your build command includes `cd ../..` to access the monorepo root:
+
+```bash
+cd ../.. && turbo build --filter=@api/hono
+```
+
+### Environment Variables Not Loading
+
+1. Check that variables are added to the correct project (backend vs frontend)
+2. Verify variable names match exactly (including `NEXT_PUBLIC_` prefix for frontend)
+3. Redeploy after adding new environment variables
+
+### CORS Errors
+
+Ensure `HONO_TRUSTED_ORIGINS` in the backend includes your frontend URL:
+
+```bash
+HONO_TRUSTED_ORIGINS=https://your-frontend.vercel.app
+```
+
+### OAuth Redirect Mismatch
+
+Verify OAuth callback URLs match your production API URL:
+
+```
+https://your-api.vercel.app/api/auth/callback/github
+https://your-api.vercel.app/api/auth/callback/google
+```
+
+## Production Checklist
+
+<Steps>
+  <Step title="Security">
+    - [ ] Generate a strong `BETTER_AUTH_SECRET` (32+ characters)
+    - [ ] Configure `HONO_TRUSTED_ORIGINS` to only include your frontend domain
+    - [ ] Set up rate limiting with `HONO_RATE_LIMIT`
+  </Step>
+
+  <Step title="Database">
+    - [ ] Use a production-grade PostgreSQL database
+    - [ ] Enable connection pooling
+    - [ ] Run migrations: `bun run db:migrate`
+  </Step>
+
+  <Step title="OAuth">
+    - [ ] Update callback URLs in GitHub/Google developer consoles
+    - [ ] Test login flow with production URLs
+  </Step>
+
+  <Step title="Monitoring">
+    - [ ] Set up PostHog analytics (optional)
+    - [ ] Configure user feedback with UserJot (optional)
+    - [ ] Monitor Vercel deployment logs
+  </Step>
+</Steps>

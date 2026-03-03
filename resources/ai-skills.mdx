@@ -1,0 +1,268 @@
+---
+title: AI Skills
+description: Pre-defined skills for AI assistants and LLM agents to help with common tasks in ZeroStarter.
+---
+
+## Overview
+
+ZeroStarter includes structured instructions for AI assistants and LLM agents through the `AGENTS.md` and `CLAUDE.md` files. These guides help AI tools like Cursor, GitHub Copilot, Claude Code, and other AI coding assistants work effectively with the codebase by providing project-specific context and conventions.
+
+## Agent Instructions
+
+### AGENTS.md
+
+Provides general guidance to all AI coding agents working with the repository.
+
+**Location**: `AGENTS.md` (repository root)
+
+**Key Guidelines**:
+
+- **Minimal Comments**: Only add comments when absolutely necessary
+- **Import Aliases**: Use `@/` for imports where applicable
+- **Custom Skills**: Skills are located in `.claude/skills`, `.cursor/skills`, or `.github/skills` directories
+
+```markdown
+# AGENTS.md
+
+This file provides guidance to AI coding agents (Claude Code, Cursor, Copilot, etc.) 
+when working with code in this repository.
+
+## Instructions
+
+- Do not comment unnecessarily. Only comment if it is absolutely necessary.
+- Use `@/` for imports, if applicable.
+
+## Skills
+
+This project includes custom skills to assist with common tasks. 
+Skills are located in `.claude/skills`, `.cursor/skills`, or `.github/skills`.
+```
+
+### CLAUDE.md
+
+Provides comprehensive guidance specifically for Claude Code (claude.ai/code) with detailed commands, architecture overview, and code style conventions.
+
+**Location**: `CLAUDE.md` (repository root)
+
+## Commands Reference
+
+The `CLAUDE.md` file documents all essential commands for working with ZeroStarter:
+
+<Accordion title="Development Commands">
+
+```bash
+# Install dependencies
+bun install
+
+# Start all apps (Next.js + Hono) with Turborepo TUI
+bun dev
+
+# Run Hono API only
+bun --cwd api/hono dev
+
+# Run Next.js only
+bun --cwd web/next dev
+```
+
+</Accordion>
+
+<Accordion title="Database Commands">
+
+```bash
+# Generate Drizzle migrations
+bun run db:generate
+
+# Run migrations
+bun run db:migrate
+
+# Open Drizzle Studio
+bun run db:studio
+```
+
+</Accordion>
+
+<Accordion title="Build & Quality Commands">
+
+```bash
+# Build all packages/apps
+bun run build
+
+# TypeScript type checking
+bun run check-types
+
+# Run oxlint across all packages
+bun run lint
+
+# Format with oxfmt
+bun run format
+
+# Check formatting
+bun run format:check
+```
+
+</Accordion>
+
+## Architecture Context
+
+AI assistants receive structured information about the monorepo architecture:
+
+### Apps
+
+- `api/hono` - Hono backend API server (port 4000), exports `AppType` for RPC client
+- `web/next` - Next.js 16 frontend (port 3000)
+
+### Packages
+
+- `@packages/auth` - Better Auth configuration with GitHub/Google OAuth
+- `@packages/db` - Drizzle ORM schema and PostgreSQL connection (Bun SQL driver)
+- `@packages/env` - Type-safe environment variables with `@t3-oss/env-core`, exports per-app envs (`env/api-hono`, `env/auth`, `env/db`, `env/web-next`)
+- `@packages/tsconfig` - Shared TypeScript configs
+
+### Type-Safe API Pattern
+
+Backend routes in `api/hono/src/routers/` are exported as `AppType`. Frontend imports this type and uses `hono/client` for fully typed requests:
+
+```ts
+import { apiClient } from "@/lib/api/client"
+const res = await apiClient.health.$get()
+const { data } = await res.json()
+```
+
+## Code Style Conventions
+
+AI assistants are instructed to follow these conventions:
+
+<Steps>
+
+<Step title="Use import aliases">
+Always use `@/` for imports:
+
+```ts
+// Good
+import { apiClient } from "@/lib/api/client"
+
+// Avoid
+import { apiClient } from "../../../lib/api/client"
+```
+</Step>
+
+<Step title="Minimal comments">
+Only add comments when absolutely necessary. Code should be self-documenting.
+</Step>
+
+<Step title="Conventional commits">
+Use conventional commit format:
+
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `refactor:` - Code refactoring
+- `docs:` - Documentation changes
+- `chore:` - Maintenance tasks
+- `test:` - Testing changes
+- `perf:` - Performance improvements
+- `style:` - Code style changes
+- `ci:` - CI/CD changes
+
+```bash
+git commit -m "feat(auth): add OAuth provider support"
+git commit -m "fix(api): prevent duplicate webhook delivery"
+```
+</Step>
+
+</Steps>
+
+## Git Hooks
+
+AI assistants are informed about Lefthook pre-commit hooks that run automatically:
+
+<Note>
+**Pre-commit runs**:
+- `bun audit` (on canary branch)
+- `lint-staged` (staged files linting)
+- `build` (full build check)
+
+**Commit messages** are validated with commitlint (conventional format required)
+</Note>
+
+## Route Groups (Next.js)
+
+AI assistants understand the Next.js route organization:
+
+- `(content)` - Docs and blog pages (Fumadocs)
+- `(protected)` - Authenticated routes (dashboard)
+- `(llms.txt)` - AI/LLM documentation endpoints
+
+## Best Practices
+
+<AccordionGroup>
+
+<Accordion title="Database Schema Changes">
+When modifying the database schema:
+
+1. Update schema files in `packages/db/src/schema/`
+2. Generate migrations: `bun run db:generate`
+3. Review generated SQL in `packages/db/drizzle/`
+4. Apply migrations: `bun run db:migrate`
+</Accordion>
+
+<Accordion title="Type-Safe API Development">
+When adding new API routes:
+
+1. Create route in `api/hono/src/routers/`
+2. Export from `api/hono/src/index.ts` as part of `AppType`
+3. Use in frontend with `apiClient` for automatic type inference
+4. No manual type definitions needed!
+</Accordion>
+
+<Accordion title="Environment Variables">
+When adding new environment variables:
+
+1. Add to appropriate schema in `packages/env/src/`
+2. Update `.env.example` with description
+3. Add to `turbo.json` `globalEnv` array if needed
+4. Type safety is automatic via `@t3-oss/env-core`
+</Accordion>
+
+</AccordionGroup>
+
+## Integration with AI Tools
+
+### Cursor
+
+Cursor automatically reads `AGENTS.md` and `CLAUDE.md` from the repository root to understand project conventions.
+
+### GitHub Copilot
+
+Copilot can reference these files when you mention them in comments or prompts.
+
+### Claude Code
+
+Claude Code (claude.ai/code) uses `CLAUDE.md` as its primary instruction source, providing comprehensive context about the project architecture and conventions.
+
+### Custom AI Assistants
+
+The structured format makes these files easy to parse programmatically for custom AI integrations.
+
+## Updating AI Instructions
+
+When project conventions change:
+
+<Steps>
+
+<Step title="Update AGENTS.md">
+Add or modify general guidelines that apply to all AI assistants.
+</Step>
+
+<Step title="Update CLAUDE.md">
+Add detailed commands, architecture changes, or Claude-specific instructions.
+</Step>
+
+<Step title="Keep them in sync">
+Ensure both files remain consistent and complementary.
+</Step>
+
+<Step title="Document new patterns">
+As the project evolves, document new patterns and best practices.
+</Step>
+
+</Steps>

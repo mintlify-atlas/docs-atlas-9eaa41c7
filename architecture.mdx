@@ -1,0 +1,548 @@
+---
+title: Architecture
+description: Deep dive into ZeroStarter's tech stack, monorepo structure, and architectural decisions.
+---
+
+# Architecture
+
+ZeroStarter is built on a modern, type-safe architecture that prioritizes developer experience, performance, and maintainability. This guide explains the technical decisions, technology choices, and how everything fits together.
+
+## Tech Stack
+
+### Runtime & Build System
+
+<CardGroup cols={2}>
+  <Card title="Bun" icon="rocket">
+    **Ultra-fast JavaScript runtime** that serves as both the runtime and package manager.
+    
+    - 3x faster than Node.js for most operations
+    - Built-in TypeScript support
+    - Native test runner and bundler
+    - Drop-in replacement for npm/yarn/pnpm
+  </Card>
+  
+  <Card title="Turborepo" icon="gauge-high">
+    **High-performance monorepo build system** that orchestrates the entire workspace.
+    
+    - Intelligent caching and parallelization
+    - Incremental builds
+    - Beautiful TUI for development
+    - Remote caching support
+  </Card>
+</CardGroup>
+
+### Frontend Stack
+
+<Steps>
+  <Step title="Next.js 16">
+    React framework with App Router for building the frontend.
+    
+    **Key Features**:
+    - Server Components for optimal performance
+    - React 19 with concurrent rendering
+    - File-based routing
+    - Built-in optimizations (images, fonts, scripts)
+    
+    **Configuration**: `web/next/package.json:34`
+  </Step>
+  
+  <Step title="Tailwind CSS">
+    Utility-first CSS framework for styling.
+    
+    - Tailwind v4 with new PostCSS architecture
+    - Custom design tokens
+    - JIT (Just-In-Time) compilation
+    
+    **Enhancement**: `tw-animate-css` for additional animations
+  </Step>
+  
+  <Step title="Shadcn UI">
+    Beautiful, accessible component library built on Radix UI.
+    
+    - Copy-paste components (not a dependency)
+    - Full TypeScript support
+    - Customizable with Tailwind
+    - WAI-ARIA compliant
+  </Step>
+  
+  <Step title="TanStack Query">
+    Powerful data fetching and caching library.
+    
+    - Automatic caching and background updates
+    - Optimistic updates
+    - DevTools for debugging
+    - Perfect pairing with Hono RPC
+  </Step>
+</Steps>
+
+### Backend Stack
+
+<Steps>
+  <Step title="Hono">
+    Ultra-lightweight web framework designed for edge runtimes.
+    
+    **Why Hono?**
+    - Extremely fast (3-4x faster than Express)
+    - First-class TypeScript support
+    - Works on any runtime (Bun, Node, Deno, Workers)
+    - Built-in RPC for type-safe client-server communication
+    
+    **Example from** `api/hono/src/index.ts:14`:
+    ```typescript
+    const app = new Hono()
+      .use("*", cors(), logger(), rateLimiterMiddleware)
+      .basePath("/api")
+      .get("/health", (c) => {
+        const data = { 
+          message: "ok", 
+          version: BUILD_VERSION, 
+          environment: env.NODE_ENV 
+        }
+        return c.json({ data })
+      })
+    ```
+  </Step>
+  
+  <Step title="Hono OpenAPI">
+    Automatic OpenAPI specification generation.
+    
+    - Type-safe route definitions with `describeRoute`
+    - Auto-generated API documentation
+    - Zod schema integration
+    - Interactive docs via Scalar
+    
+    **Example from** `api/hono/src/routers/v1.ts:34`:
+    ```typescript
+    .get(
+      "/session",
+      describeRoute({
+        tags: ["v1"],
+        description: "Get current session",
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: resolver(z.object({ data: sessionSchema }))
+              }
+            }
+          }
+        }
+      }),
+      (c) => {
+        const data = c.get("session")
+        return c.json({ data })
+      }
+    )
+    ```
+  </Step>
+</Steps>
+
+### Database & ORM
+
+<CardGroup cols={2}>
+  <Card title="PostgreSQL" icon="database">
+    **Production-grade relational database**
+    
+    - ACID compliance
+    - Advanced features (JSONB, full-text search)
+    - Excellent performance and scalability
+    - Wide hosting support
+  </Card>
+  
+  <Card title="Drizzle ORM" icon="code">
+    **TypeScript-first ORM with zero overhead**
+    
+    - Type-safe queries
+    - SQL-like syntax
+    - Automatic migrations
+    - Studio UI for database management
+  </Card>
+</CardGroup>
+
+**Database Setup** (`packages/db/src/index.ts:1`):
+
+```typescript
+import { env } from "@packages/env/db"
+import { SQL } from "bun"
+import { drizzle } from "drizzle-orm/bun-sql"
+import * as schema from "@/schema"
+
+type Database = BunSQLDatabase<typeof schema>
+
+const client = new SQL(env.POSTGRES_URL, {
+  connectionTimeout: 10,
+  idleTimeout: 30,
+  maxLifetime: 0,
+  tls: env.NODE_ENV === "production" ? {
+    rejectUnauthorized: true
+  } : undefined
+})
+
+export const db = drizzle({ client, schema })
+```
+
+### Authentication
+
+**Better Auth** provides enterprise-grade authentication with minimal setup.
+
+**Features**:
+- Multiple OAuth providers (GitHub, Google, etc.)
+- Email/password authentication
+- Magic link support
+- Session management
+- CSRF protection
+- Rate limiting
+
+**Integration**: `packages/auth/` contains shared authentication logic used by both frontend and backend.
+
+### Data Validation
+
+**Zod** provides runtime type validation and schema definition.
+
+- Define schemas once, use everywhere
+- Automatic TypeScript type inference
+- Parse and validate API requests/responses
+- Error messages with detailed feedback
+
+### API Documentation
+
+**Scalar** provides beautiful, interactive API documentation.
+
+**Features** (`api/hono/src/index.ts:107`):
+- Auto-generated from OpenAPI spec
+- Live API testing
+- Code samples in multiple languages
+- Hono/client examples for type-safe usage
+
+**Access at**: `http://localhost:4000/api/docs`
+
+## Monorepo Structure
+
+ZeroStarter uses a monorepo architecture organized with Turborepo workspaces:
+
+```
+zerostarter/
+├── api/
+│   └── hono/              # Backend API server
+│       ├── src/
+│       │   ├── index.ts   # App entry point, exports AppType
+│       │   ├── routers/   # API route handlers
+│       │   ├── middlewares/  # Auth, rate limiting, etc.
+│       │   └── lib/       # Utilities and helpers
+│       └── package.json
+│
+├── web/
+│   └── next/              # Frontend application
+│       ├── src/
+│       │   ├── app/       # Next.js App Router
+│       │   ├── components/  # React components
+│       │   └── lib/
+│       │       └── api/
+│       │           └── client.ts  # Type-safe API client
+│       └── package.json
+│
+├── packages/
+│   ├── auth/              # Shared authentication (Better Auth)
+│   │   ├── src/
+│   │   │   └── index.ts
+│   │   └── package.json
+│   │
+│   ├── db/                # Database schema and client
+│   │   ├── src/
+│   │   │   ├── index.ts   # Drizzle instance
+│   │   │   └── schema/    # Database schemas
+│   │   └── package.json
+│   │
+│   ├── env/               # Type-safe environment variables
+│   │   ├── src/
+│   │   │   ├── api-hono.ts  # Backend env
+│   │   │   ├── web-next.ts  # Frontend env
+│   │   │   └── db.ts        # Database env
+│   │   └── package.json
+│   │
+│   └── tsconfig/          # Shared TypeScript configs
+│       ├── base.json
+│       ├── nextjs.json
+│       └── package.json
+│
+├── turbo.json             # Turborepo configuration
+├── package.json           # Root workspace config
+└── .env                   # Environment variables
+```
+
+### Workspace Dependencies
+
+Packages reference each other using workspace protocol:
+
+**Example** (`web/next/package.json:12`):
+```json
+{
+  "dependencies": {
+    "@api/hono": "workspace:*",
+    "@packages/auth": "workspace:*",
+    "@packages/env": "workspace:*"
+  }
+}
+```
+
+This creates a dependency graph:
+```
+@web/next
+  ├─ @api/hono
+  │   ├─ @packages/env
+  │   └─ @packages/auth
+  │       ├─ @packages/env
+  │       └─ @packages/db
+  │           └─ @packages/env
+  └─ @packages/env
+```
+
+## Type Safety Architecture
+
+### End-to-End Type Safety with Hono RPC
+
+One of ZeroStarter's most powerful features is complete type safety from database to frontend.
+
+<Steps>
+  <Step title="Define API Routes">
+    Routes are defined in `api/hono/src/routers/` with full type annotations:
+    
+    ```typescript api/hono/src/routers/v1.ts
+    export const v1Router = new Hono()
+      .use("/*", authMiddleware)
+      .get("/user", (c) => {
+        const data = c.get("user")
+        return c.json({ data })
+      })
+    ```
+  </Step>
+  
+  <Step title="Export AppType">
+    The main app exports its type for client inference (`api/hono/src/index.ts:120`):
+    
+    ```typescript
+    const routes = app
+      .basePath("/api")
+      .get("/health", ...)
+      .route("/auth", authRouter)
+      .route("/v1", v1Router)
+    
+    export type AppType = typeof routes
+    ```
+  </Step>
+  
+  <Step title="Create Type-Safe Client">
+    The frontend imports `AppType` and creates a typed client (`web/next/src/lib/api/client.ts:1`):
+    
+    ```typescript
+    import type { AppType } from "@api/hono"
+    import { hc } from "hono/client"
+    
+    const honoClient = hc<AppType>("http://localhost:4000", {
+      init: { credentials: "include" }
+    })
+    
+    export const apiClient = honoClient.api
+    ```
+  </Step>
+  
+  <Step title="Use with Full Type Safety">
+    All API calls are now fully typed:
+    
+    ```typescript
+    import { apiClient } from "@/lib/api/client"
+    
+    // TypeScript knows the exact return type!
+    const response = await apiClient.v1.user.$get()
+    const { data } = await response.json()
+    
+    // data is typed as:
+    // {
+    //   id: string
+    //   email: string
+    //   name: string
+    //   ...
+    // }
+    ```
+  </Step>
+</Steps>
+
+### Type-Safe Environment Variables
+
+Environment variables are validated and typed using Zod and `@t3-oss/env-core`.
+
+**Benefits**:
+- Runtime validation of environment variables
+- TypeScript autocomplete
+- Separate client/server variable validation
+- Prevents accidental exposure of secrets
+
+**Example** (`packages/env/`):
+```typescript
+import { createEnv } from "@t3-oss/env-core"
+import { z } from "zod"
+
+export const env = createEnv({
+  server: {
+    POSTGRES_URL: z.string().url(),
+    BETTER_AUTH_SECRET: z.string().min(32),
+  },
+  client: {
+    NEXT_PUBLIC_APP_URL: z.string().url(),
+    NEXT_PUBLIC_API_URL: z.string().url(),
+  },
+  runtimeEnv: process.env,
+})
+```
+
+## Build Pipeline
+
+Turborepo orchestrates the build process defined in `turbo.json:3`:
+
+```json
+{
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "persistent": true,
+      "cache": false
+    }
+  }
+}
+```
+
+**Build Order**:
+1. `@packages/env` - Environment validation (required by all)
+2. `@packages/db` - Database client and schema
+3. `@packages/auth` - Authentication logic
+4. `@api/hono` - Backend API server
+5. `@web/next` - Frontend application
+
+**Development Mode**:
+```bash
+bun dev
+```
+- Builds packages in dependency order
+- Starts dev servers with hot reload
+- Shows unified logs in TUI
+
+## Key Architectural Decisions
+
+### Why Monorepo?
+
+<CardGroup cols={2}>
+  <Card title="Shared Code">
+    Common logic (auth, db, env) is centralized and reused across frontend and backend.
+  </Card>
+  
+  <Card title="Coordinated Changes">
+    Update API and client together in a single commit with guaranteed type safety.
+  </Card>
+  
+  <Card title="Simplified Dependencies">
+    One `node_modules`, one lockfile, one version of each dependency.
+  </Card>
+  
+  <Card title="Unified Tooling">
+    Single configuration for TypeScript, linting, formatting, and testing.
+  </Card>
+</CardGroup>
+
+### Why Bun?
+
+- **Speed**: 3-4x faster than Node.js for most operations
+- **Simplicity**: One tool for runtime, package management, and bundling
+- **Native TypeScript**: No need for ts-node or separate compilation
+- **Modern APIs**: Built-in support for Web APIs, fetch, etc.
+
+### Why Hono?
+
+- **Performance**: Minimal overhead, designed for speed
+- **Type Safety**: First-class TypeScript with RPC support
+- **Runtime Agnostic**: Works on Bun, Node, Deno, Cloudflare Workers
+- **Developer Experience**: Clean API, excellent documentation
+
+### Why Drizzle ORM?
+
+- **Type Safety**: Queries are fully typed with TypeScript inference
+- **Performance**: Generates optimal SQL with minimal overhead
+- **Developer Experience**: SQL-like syntax that's familiar and intuitive
+- **Tooling**: Drizzle Studio provides a great database UI
+
+## Performance Optimizations
+
+### Build Performance
+
+- **Turborepo caching**: Only rebuilds changed packages
+- **tsdown**: Fast TypeScript bundler for packages
+- **Parallel builds**: Independent packages build simultaneously
+
+### Runtime Performance
+
+- **Bun runtime**: Native speed improvements
+- **React Server Components**: Reduced JavaScript sent to client
+- **Hono middleware**: Minimal overhead request handling
+- **PostgreSQL connection pooling**: Efficient database connections
+
+### Development Experience
+
+- **Hot Module Replacement**: Instant updates in dev mode
+- **Type checking**: Real-time TypeScript validation
+- **Drizzle Studio**: Visual database exploration
+- **API documentation**: Always up-to-date with Scalar
+
+## Security Considerations
+
+<AccordionGroup>
+  <Accordion title="Environment Variables">
+    - Validated at runtime with Zod
+    - Separate client/server variables
+    - Never expose server secrets to client
+    - `.env` excluded from version control
+  </Accordion>
+  
+  <Accordion title="Authentication">
+    - CSRF protection via Better Auth
+    - Secure session management
+    - HTTP-only cookies
+    - Rate limiting on auth endpoints
+  </Accordion>
+  
+  <Accordion title="API Security">
+    - CORS configured for trusted origins
+    - Rate limiting middleware
+    - Input validation with Zod
+    - Authenticated routes with middleware
+  </Accordion>
+  
+  <Accordion title="Database Security">
+    - Connection pooling with timeouts
+    - TLS/SSL in production
+    - Prepared statements (SQL injection prevention)
+    - No raw SQL queries
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Project Structure" icon="folder" href="/project-structure">
+    Explore the detailed file and folder organization.
+  </Card>
+  
+  <Card title="Type-Safe API" icon="shield-check" href="/type-safe-api">
+    Learn how to use Hono RPC for building APIs.
+  </Card>
+  
+  <Card title="Database Schema" icon="database" href="/database/schema">
+    Understand the database structure and how to extend it.
+  </Card>
+  
+  <Card title="Deployment" icon="rocket" href="/deployment/vercel">
+    Deploy your application to production.
+  </Card>
+</CardGroup>

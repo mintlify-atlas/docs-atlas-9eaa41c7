@@ -1,0 +1,423 @@
+---
+title: Database
+description: PostgreSQL with Drizzle ORM, type-safe schema, and migrations using Bun SQL
+---
+
+ZeroStarter uses PostgreSQL with [Drizzle ORM](https://orm.drizzle.team) for a fully type-safe database layer with automatic migrations and a powerful schema system.
+
+## Architecture
+
+The database is configured as a shared package (`@packages/db`) that provides:
+
+- Type-safe schema definitions with Drizzle ORM
+- Connection pooling with Bun SQL driver
+- Automatic migrations with Drizzle Kit
+- Relations and indexes for optimal performance
+
+<CodeGroup>
+
+```typescript packages/db/src/index.ts
+import { env } from "@packages/env/db"
+import { SQL } from "bun"
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql"
+import { drizzle } from "drizzle-orm/bun-sql"
+import * as schema from "@/schema"
+
+type Database = BunSQLDatabase<typeof schema>
+
+declare global {
+  var db: Database
+}
+
+let db: Database
+
+if (env.NODE_ENV === "production") {
+  const client = new SQL(env.POSTGRES_URL, {
+    connectionTimeout: 10,
+    idleTimeout: 30,
+    maxLifetime: 0,
+    tls: {
+      rejectUnauthorized: true,
+    },
+  })
+  db = drizzle({ client, schema })
+} else {
+  if (!global.db) {
+    const client = new SQL(env.POSTGRES_URL, {
+      connectionTimeout: 10,
+      idleTimeout: 30,
+      maxLifetime: 0,
+    })
+    global.db = drizzle({ client, schema })
+  }
+  db = global.db
+}
+
+export { db }
+export * from "@/schema"
+```
+
+```typescript drizzle.config.ts
+import { env } from "@packages/env/db"
+import { defineConfig } from "drizzle-kit"
+
+export default defineConfig({
+  dialect: "postgresql",
+  dbCredentials: {
+    url: env.POSTGRES_URL,
+  },
+  schema: "src/schema",
+  out: "drizzle",
+})
+```
+
+</CodeGroup>
+
+## Connection Management
+
+<Info>
+  In development, the database connection is cached globally to prevent creating multiple connections during hot reloads. In production, a fresh connection is created.
+</Info>
+
+### Environment Variables
+
+Configure your PostgreSQL connection:
+
+```bash .env
+# Generate using `bunx pglaunch -k`
+POSTGRES_URL=postgresql://user:password@host:port/database
+```
+
+<Note>
+  [pglaunch](https://www.npmjs.com/package/pglaunch) is a zero-config PostgreSQL launcher that makes local development easier.
+</Note>
+
+### Connection Pooling
+
+Bun SQL driver provides built-in connection pooling:
+
+- **connectionTimeout**: 10 seconds - Maximum time to wait for a connection
+- **idleTimeout**: 30 seconds - Time before closing idle connections
+- **maxLifetime**: 0 (unlimited) - Maximum connection lifetime
+- **TLS**: Enabled in production for secure connections
+
+## Schema Definition
+
+Drizzle provides a type-safe, declarative schema system.
+
+### User Schema
+
+```typescript packages/db/src/schema/auth.ts
+import { pgTable, text, boolean, timestamp } from "drizzle-orm/pg-core"
+
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  image: text("image"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+})
+```
+
+### Session Schema
+
+<Tabs items={["Schema", "Relations", "Indexes"]}>
+  <Tab value="Schema">
+    ```typescript packages/db/src/schema/auth.ts
+    export const session = pgTable(
+      "session",
+      {
+        id: text("id").primaryKey(),
+        expiresAt: timestamp("expires_at").notNull(),
+        token: text("token").notNull().unique(),
+        createdAt: timestamp("created_at").defaultNow().notNull(),
+        updatedAt: timestamp("updated_at")
+          .$onUpdate(() => new Date())
+          .notNull(),
+        ipAddress: text("ip_address"),
+        userAgent: text("user_agent"),
+        userId: text("user_id")
+          .notNull()
+          .references(() => user.id, { onDelete: "cascade" }),
+        activeOrganizationId: text("active_organization_id"),
+        activeTeamId: text("active_team_id"),
+      },
+      (table) => [index("session_userId_idx").on(table.userId)],
+    )
+    ```
+  </Tab>
+  <Tab value="Relations">
+    ```typescript packages/db/src/schema/auth.ts
+    import { relations } from "drizzle-orm"
+
+    export const sessionRelations = relations(session, ({ one }) => ({
+      user: one(user, {
+        fields: [session.userId],
+        references: [user.id],
+      }),
+    }))
+    ```
+  </Tab>
+  <Tab value="Indexes">
+    Sessions are indexed by `userId` for fast lookups:
+    ```typescript
+    index("session_userId_idx").on(table.userId)
+    ```
+    This optimizes queries like:
+    ```typescript
+    await db.query.session.findMany({
+      where: eq(session.userId, userId)
+    })
+    ```
+  </Tab>
+</Tabs>
+
+### Organization Schema
+
+Multi-tenant support with organizations, teams, and members:
+
+```typescript packages/db/src/schema/auth.ts
+export const organization = pgTable(
+  "organization",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    logo: text("logo"),
+    createdAt: timestamp("created_at").notNull(),
+    metadata: text("metadata"),
+  },
+  (table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
+)
+
+export const member = pgTable(
+  "member",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: text("role").default("member").notNull(),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (table) => [
+    index("member_organizationId_idx").on(table.organizationId),
+    index("member_userId_idx").on(table.userId),
+  ],
+)
+```
+
+## Migrations
+
+Drizzle Kit automatically generates SQL migrations from your schema changes.
+
+<Steps>
+
+### Generate migrations
+
+When you modify your schema, generate a migration:
+
+```bash
+bun db:generate
+```
+
+This creates SQL files in `packages/db/drizzle/`:
+
+```sql packages/db/drizzle/0000_zero_starter.sql
+CREATE TABLE "user" (
+  "id" text PRIMARY KEY NOT NULL,
+  "name" text NOT NULL,
+  "email" text NOT NULL,
+  "email_verified" boolean DEFAULT false NOT NULL,
+  "image" text,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  "updated_at" timestamp DEFAULT now() NOT NULL,
+  CONSTRAINT "user_email_unique" UNIQUE("email")
+);
+```
+
+### Apply migrations
+
+Run migrations against your database:
+
+```bash
+bun db:migrate
+```
+
+### View database
+
+Open Drizzle Studio to browse your database:
+
+```bash
+bun db:studio
+```
+
+This launches a web UI at `https://local.drizzle.studio`
+
+</Steps>
+
+## Querying Data
+
+Drizzle provides multiple ways to query your database.
+
+### Query API (Recommended)
+
+The query API provides full type safety with relations:
+
+```typescript
+import { db } from "@packages/db"
+
+// Find user with all sessions
+const userWithSessions = await db.query.user.findFirst({
+  where: (user, { eq }) => eq(user.email, "user@example.com"),
+  with: {
+    sessions: true,
+  },
+})
+
+// Find organization with members
+const org = await db.query.organization.findFirst({
+  where: (org, { eq }) => eq(org.slug, "acme"),
+  with: {
+    members: {
+      with: {
+        user: true,
+      },
+    },
+    teams: true,
+  },
+})
+```
+
+### Select API
+
+For complex queries, use the select API:
+
+```typescript
+import { db, user, session } from "@packages/db"
+import { eq, and, gt } from "drizzle-orm"
+
+// Find active sessions
+const activeSessions = await db
+  .select()
+  .from(session)
+  .innerJoin(user, eq(session.userId, user.id))
+  .where(gt(session.expiresAt, new Date()))
+```
+
+### Insert/Update/Delete
+
+```typescript
+import { db, user } from "@packages/db"
+import { eq } from "drizzle-orm"
+
+// Insert
+await db.insert(user).values({
+  id: "user_123",
+  name: "John Doe",
+  email: "john@example.com",
+})
+
+// Update
+await db
+  .update(user)
+  .set({ name: "Jane Doe" })
+  .where(eq(user.id, "user_123"))
+
+// Delete
+await db.delete(user).where(eq(user.id, "user_123"))
+```
+
+## Type Safety
+
+<Info>
+  Drizzle infers types from your schema automatically. No code generation required.
+</Info>
+
+```typescript
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm"
+import { user } from "@packages/db"
+
+// Inferred from schema
+type User = InferSelectModel<typeof user>
+type NewUser = InferInsertModel<typeof user>
+
+// User type includes:
+// {
+//   id: string
+//   name: string
+//   email: string
+//   emailVerified: boolean
+//   image: string | null
+//   createdAt: Date
+//   updatedAt: Date
+// }
+```
+
+## Relations
+
+Define relationships between tables:
+
+```typescript packages/db/src/schema/auth.ts
+import { relations } from "drizzle-orm"
+
+export const userRelations = relations(user, ({ many }) => ({
+  sessions: many(session),
+  accounts: many(account),
+  members: many(member),
+}))
+
+export const memberRelations = relations(member, ({ one }) => ({
+  organization: one(organization, {
+    fields: [member.organizationId],
+    references: [organization.id],
+  }),
+  user: one(user, {
+    fields: [member.userId],
+    references: [user.id],
+  }),
+}))
+```
+
+## Performance
+
+### Indexes
+
+All foreign keys are indexed for optimal query performance:
+
+```typescript
+index("session_userId_idx").on(table.userId),
+index("member_organizationId_idx").on(table.organizationId),
+index("member_userId_idx").on(table.userId),
+```
+
+### Cascade Deletes
+
+Foreign keys use cascade delete to maintain referential integrity:
+
+```typescript
+.references(() => user.id, { onDelete: "cascade" })
+```
+
+<Warning>
+  When a user is deleted, all their sessions, accounts, and memberships are automatically deleted.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/features/authentication">
+    Learn how Better Auth integrates with the database schema
+  </Card>
+  <Card title="Drizzle ORM" icon="book" href="https://orm.drizzle.team">
+    Explore Drizzle's full documentation
+  </Card>
+</CardGroup>

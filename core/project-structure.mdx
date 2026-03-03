@@ -1,0 +1,319 @@
+---
+title: Project Structure
+description: Understanding ZeroStarter's monorepo architecture and directory organization
+---
+
+ZeroStarter follows a clean monorepo architecture powered by [Turborepo](https://turbo.build) and [Bun workspaces](https://bun.sh/docs/install/workspaces). This structure provides separation of concerns, code reusability, and efficient build orchestration.
+
+## Overview
+
+The project is organized into three main directories:
+
+```
+.
+├── api/           # Backend services
+├── web/           # Frontend applications
+└── packages/      # Shared packages and libraries
+```
+
+## Directory Structure
+
+<Accordion>
+  <AccordionItem title="api/ - Backend Services">
+    Contains all backend API services. Currently includes:
+
+    ### api/hono/
+    The main backend API server built with [Hono](https://hono.dev).
+
+    ```
+    api/hono/
+    ├── src/
+    │   ├── index.ts          # Main app entry, middleware, and AppType export
+    │   ├── routers/
+    │   │   ├── index.ts      # Router exports
+    │   │   ├── auth.ts       # Authentication routes
+    │   │   └── v1.ts         # API v1 routes
+    │   ├── middlewares/      # Custom middleware
+    │   └── lib/              # Utility functions
+    └── package.json
+    ```
+
+    **Key Features:**
+    - End-to-end type safety with Hono RPC
+    - OpenAPI documentation generation
+    - Rate limiting and CORS configuration
+    - Better Auth integration
+
+    **Package Details:**
+    - **Name:** `@api/hono`
+    - **Main Export:** `dist/index.mjs`
+    - **Type Export:** `AppType` for RPC client
+  </AccordionItem>
+
+  <AccordionItem title="web/ - Frontend Applications">
+    Contains all frontend applications and user interfaces.
+
+    ### web/next/
+    The main web application built with [Next.js 16](https://nextjs.org).
+
+    ```
+    web/next/
+    ├── src/
+    │   ├── app/              # App router pages
+    │   │   ├── (protected)/  # Protected routes (dashboard)
+    │   │   ├── (content)/    # Content routes (docs, blog)
+    │   │   └── page.tsx      # Landing page
+    │   ├── components/       # React components
+    │   │   └── ui/          # Shadcn UI components
+    │   └── lib/
+    │       ├── api/
+    │       │   └── client.ts # Type-safe API client
+    │       └── auth/
+    │           └── index.ts  # Auth utilities
+    ├── content/              # MDX content (docs, blog)
+    ├── public/               # Static assets
+    └── package.json
+    ```
+
+    **Key Features:**
+    - React 19 with Server Components
+    - Type-safe API client via Hono RPC
+    - TanStack Query for data fetching
+    - Shadcn UI components
+    - Better Auth client integration
+    - PostHog analytics
+
+    **Package Details:**
+    - **Name:** `@web/next`
+    - **Framework:** Next.js 16
+    - **Dependencies:** `@api/hono`, `@packages/auth`, `@packages/env`
+  </AccordionItem>
+
+  <AccordionItem title="packages/ - Shared Packages">
+    Reusable packages shared across the monorepo.
+
+    ### packages/auth/
+    Shared authentication logic using [Better Auth](https://better-auth.com).
+
+    ```typescript
+    // Example structure
+    packages/auth/
+    ├── src/
+    │   └── index.ts          # Better Auth configuration
+    └── package.json
+    ```
+
+    **Exports:**
+    - `auth` - Better Auth instance
+    - `Session` type for type safety
+
+    ---
+
+    ### packages/db/
+    Database schema and [Drizzle ORM](https://orm.drizzle.team) configuration.
+
+    ```
+    packages/db/
+    ├── src/
+    │   └── index.ts          # Database connection and schema
+    ├── drizzle/              # Generated migrations
+    └── package.json
+    ```
+
+    **Features:**
+    - PostgreSQL with Drizzle ORM
+    - Type-safe database queries
+    - Migration management
+
+    **Available Scripts:**
+    - `bun run db:generate` - Generate migrations
+    - `bun run db:migrate` - Run migrations
+    - `bun run db:studio` - Open Drizzle Studio
+
+    ---
+
+    ### packages/env/
+    Type-safe environment variables using [@t3-oss/env-core](https://env.t3.gg/).
+
+    ```typescript
+    // Multiple environment configurations
+    packages/env/
+    ├── src/
+    │   ├── index.ts          # Shared env config
+    │   ├── api-hono.ts       # Hono API env
+    │   ├── auth.ts           # Auth env
+    │   ├── db.ts             # Database env
+    │   └── web-next.ts       # Next.js env
+    └── package.json
+    ```
+
+    **Exports:**
+    - `@packages/env` - Shared environment variables
+    - `@packages/env/api-hono` - Hono-specific env
+    - `@packages/env/auth` - Auth-specific env
+    - `@packages/env/db` - Database env
+    - `@packages/env/web-next` - Next.js env
+
+    ---
+
+    ### packages/tsconfig/
+    Shared TypeScript configurations.
+
+    ```json
+    // Base configs for different environments
+    packages/tsconfig/
+    ├── base.json
+    ├── nextjs.json
+    └── package.json
+    ```
+
+    **Usage:**
+    ```json
+    {
+      "extends": "@packages/tsconfig/nextjs.json"
+    }
+    ```
+  </AccordionItem>
+</Accordion>
+
+## Workspace Configuration
+
+The root `package.json` defines workspace packages:
+
+```json title="package.json"
+{
+  "workspaces": [
+    "api/*",
+    "packages/*",
+    "web/*"
+  ]
+}
+```
+
+## Import Aliases
+
+<CodeGroup>
+```typescript title="api/hono/tsconfig.json"
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
+
+```typescript title="web/next/tsconfig.json"
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
+</CodeGroup>
+
+Use `@/` for local imports within each workspace package:
+
+```typescript
+// Instead of: import { something } from "../../lib/something"
+import { something } from "@/lib/something"
+```
+
+## Adding New Packages
+
+<Steps>
+  <Step title="Create package directory">
+    ```bash
+    mkdir -p packages/my-package/src
+    cd packages/my-package
+    ```
+  </Step>
+
+  <Step title="Initialize package.json">
+    ```json title="packages/my-package/package.json"
+    {
+      "name": "@packages/my-package",
+      "version": "0.0.1",
+      "private": true,
+      "type": "module",
+      "exports": "./dist/index.mjs",
+      "scripts": {
+        "build": "tsdown",
+        "check-types": "tsc --noEmit"
+      },
+      "dependencies": {},
+      "devDependencies": {
+        "@packages/tsconfig": "workspace:*",
+        "tsdown": "catalog:",
+        "typescript": "catalog:"
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Create source files">
+    ```typescript title="packages/my-package/src/index.ts"
+    export const myFunction = () => {
+      return "Hello from my package!"
+    }
+    ```
+  </Step>
+
+  <Step title="Add to workspace dependencies">
+    ```json title="api/hono/package.json"
+    {
+      "dependencies": {
+        "@packages/my-package": "workspace:*"
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Install and use">
+    ```bash
+    bun install
+    ```
+
+    ```typescript title="api/hono/src/index.ts"
+    import { myFunction } from "@packages/my-package"
+
+    console.log(myFunction())
+    ```
+  </Step>
+</Steps>
+
+## Build System
+
+ZeroStarter uses [Turborepo](https://turbo.build) for efficient build orchestration:
+
+- **Caching:** Builds are cached and only rebuilt when necessary
+- **Parallel execution:** Tasks run in parallel when possible
+- **Dependency graph:** Automatically determines build order
+
+```bash
+# Build all packages in correct order
+bun run build
+
+# Run dev mode for all workspaces
+bun dev
+```
+
+See the [turbo.json](https://github.com/nrjdalal/zerostarter/blob/main/turbo.json) for pipeline configuration.
+
+## Best Practices
+
+<Warning>
+  **Avoid circular dependencies:** Packages should not depend on each other in a circular manner. The dependency flow should be:
+  
+  `api/web → packages/auth → packages/db → packages/env`
+</Warning>
+
+<Note>
+  **Workspace protocol:** Always use `workspace:*` for internal dependencies to ensure proper linking.
+</Note>
+
+<Tip>
+  **Catalog versions:** Use `catalog:` in dependencies to share versions across the monorepo. Version definitions are in the root `package.json` under `catalog`.
+</Tip>

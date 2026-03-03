@@ -1,0 +1,686 @@
+---
+title: UI Components
+description: Shadcn UI components with Tailwind CSS, class variance authority, and next-themes
+---
+
+ZeroStarter includes a comprehensive UI component library built with [Shadcn UI](https://ui.shadcn.com), offering 55+ accessible, customizable components powered by Tailwind CSS and Base UI.
+
+## Overview
+
+The UI system provides:
+
+- **55+ Components**: Buttons, forms, modals, cards, and more
+- **Full Type Safety**: TypeScript-first component APIs
+- **Tailwind CSS**: Utility-first styling with Tailwind v4
+- **Dark Mode**: Built-in theme switching with next-themes
+- **Accessible**: ARIA-compliant components from Base UI
+- **Customizable**: Easily modify styles and variants
+
+## Architecture
+
+All UI components live in `web/next/src/components/ui/` and use a consistent pattern:
+
+<CodeGroup>
+
+```typescript components/ui/button.tsx
+"use client"
+
+import { Button as ButtonPrimitive } from "@base-ui/react/button"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        outline: "border-border bg-background hover:bg-muted hover:text-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-muted hover:text-foreground",
+        destructive: "bg-destructive/10 text-destructive hover:bg-destructive/20",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-8 gap-1.5 px-2.5",
+        xs: "h-6 gap-1 px-2 text-xs",
+        sm: "h-7 gap-1 px-2.5 text-[0.8rem]",
+        lg: "h-9 gap-1.5 px-2.5",
+        icon: "size-8",
+        "icon-xs": "size-6",
+        "icon-sm": "size-7",
+        "icon-lg": "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+)
+
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  ...props
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  return (
+    <ButtonPrimitive
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+```
+
+```typescript lib/utils.ts
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+```
+
+</CodeGroup>
+
+## Core Components
+
+### Buttons
+
+Versatile button component with multiple variants and sizes:
+
+<Tabs items={["Variants", "Sizes", "Icons"]}>
+  <Tab value="Variants">
+    ```tsx
+    import { Button } from "@/components/ui/button"
+
+    export function ButtonVariants() {
+      return (
+        <div className="flex gap-2">
+          <Button variant="default">Default</Button>
+          <Button variant="outline">Outline</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="ghost">Ghost</Button>
+          <Button variant="destructive">Destructive</Button>
+          <Button variant="link">Link</Button>
+        </div>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="Sizes">
+    ```tsx
+    import { Button } from "@/components/ui/button"
+
+    export function ButtonSizes() {
+      return (
+        <div className="flex items-center gap-2">
+          <Button size="xs">Extra Small</Button>
+          <Button size="sm">Small</Button>
+          <Button size="default">Default</Button>
+          <Button size="lg">Large</Button>
+        </div>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="Icons">
+    ```tsx
+    import { Button } from "@/components/ui/button"
+    import { RiAddLine, RiDeleteBinLine } from "@remixicon/react"
+
+    export function ButtonIcons() {
+      return (
+        <div className="flex gap-2">
+          <Button>
+            <RiAddLine />
+            Add Item
+          </Button>
+          <Button variant="destructive">
+            <RiDeleteBinLine />
+            Delete
+          </Button>
+          <Button size="icon">
+            <RiAddLine />
+          </Button>
+        </div>
+      )
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Cards
+
+Composable card components for content containers:
+
+```tsx components/project-card.tsx
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  CardAction,
+} from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+
+export function ProjectCard({ project }: { project: Project }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{project.name}</CardTitle>
+        <CardDescription>{project.description}</CardDescription>
+        <CardAction>
+          <Badge variant="secondary">{project.status}</Badge>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+          Created {new Date(project.createdAt).toLocaleDateString()}
+        </p>
+      </CardContent>
+      <CardFooter>
+        <Button variant="outline" className="w-full">
+          View Project
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+```
+
+### Forms
+
+Form components integrated with TanStack Form and Zod validation:
+
+```tsx components/signup-form.tsx
+import { useForm } from "@tanstack/react-form"
+import { zodValidator } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+
+const signupSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+})
+
+export function SignupForm() {
+  const form = useForm({
+    defaultValues: {
+      email: "",
+      password: "",
+      name: "",
+    },
+    onSubmit: async ({ value }) => {
+      console.log(value)
+    },
+  })
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        form.handleSubmit()
+      }}
+      className="space-y-4"
+    >
+      <form.Field name="name">
+        {(field) => (
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+            />
+          </div>
+        )}
+      </form.Field>
+      <form.Field name="email">
+        {(field) => (
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+            />
+          </div>
+        )}
+      </form.Field>
+      <form.Field name="password">
+        {(field) => (
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+            />
+          </div>
+        )}
+      </form.Field>
+      <Button type="submit" className="w-full">
+        Sign Up
+      </Button>
+    </form>
+  )
+}
+```
+
+### Dialogs & Modals
+
+```tsx components/delete-confirmation.tsx
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { RiDeleteBinLine } from "@remixicon/react"
+
+export function DeleteConfirmation({ onDelete }: { onDelete: () => void }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="destructive">
+          <RiDeleteBinLine />
+          Delete
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Are you sure?</DialogTitle>
+          <DialogDescription>
+            This action cannot be undone. This will permanently delete your
+            project and remove all associated data.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline">Cancel</Button>
+          <Button variant="destructive" onClick={onDelete}>
+            Delete Project
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+```
+
+## Tailwind CSS
+
+ZeroStarter uses Tailwind CSS v4 with a custom configuration.
+
+### Configuration
+
+```css app/globals.css
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/dm-sans";
+@import "@fontsource-variable/caveat";
+@import "@fontsource-variable/newsreader";
+@import "@fontsource-variable/jetbrains-mono";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "DM Sans Variable", sans-serif;
+  --font-cursive: "Caveat Variable", cursive;
+  --font-serif: "Newsreader Variable", serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
+}
+```
+
+### CSS Variables
+
+Colors are defined using CSS variables that automatically switch between light and dark themes:
+
+```css
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 96.1%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96.1%;
+  --muted-foreground: 0 0% 45.1%;
+  --accent: 0 0% 96.1%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84.2% 60.2%;
+  --border: 0 0% 89.8%;
+  --input: 0 0% 89.8%;
+  --ring: 0 0% 3.9%;
+}
+
+.dark {
+  --background: 0 0% 3.9%;
+  --foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 9%;
+  /* ... */
+}
+```
+
+<Info>
+  Use these CSS variables in your custom components: `bg-background`, `text-foreground`, `border-border`, etc.
+</Info>
+
+## Dark Mode
+
+Dark mode is handled by next-themes and configured in the providers:
+
+```typescript app/providers.tsx
+import { ThemeProvider as NextThemesProvider } from "next-themes"
+
+export function InnerProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      {children}
+    </NextThemesProvider>
+  )
+}
+```
+
+### Theme Switcher
+
+Toggle between light, dark, and system themes:
+
+```tsx components/mode-toggle.tsx
+"use client"
+
+import { useTheme } from "next-themes"
+import { Button } from "@/components/ui/button"
+import { RiMoonLine, RiSunLine, RiComputerLine } from "@remixicon/react"
+
+export function ModeToggle() {
+  const { theme, setTheme } = useTheme()
+
+  return (
+    <div className="flex gap-2">
+      <Button
+        variant={theme === "light" ? "default" : "outline"}
+        size="icon"
+        onClick={() => setTheme("light")}
+      >
+        <RiSunLine />
+      </Button>
+      <Button
+        variant={theme === "dark" ? "default" : "outline"}
+        size="icon"
+        onClick={() => setTheme("dark")}
+      >
+        <RiMoonLine />
+      </Button>
+      <Button
+        variant={theme === "system" ? "default" : "outline"}
+        size="icon"
+        onClick={() => setTheme("system")}
+      >
+        <RiComputerLine />
+      </Button>
+    </div>
+  )
+}
+```
+
+## Icons
+
+ZeroStarter uses [Remix Icon](https://remixicon.com) for consistent, beautiful icons:
+
+```tsx
+import {
+  RiAddLine,
+  RiDeleteBinLine,
+  RiEditLine,
+  RiSearchLine,
+  RiSettings4Line,
+} from "@remixicon/react"
+
+<Button>
+  <RiAddLine />
+  Create Project
+</Button>
+```
+
+<Note>
+  Browse all available icons at [remixicon.com](https://remixicon.com). Icons are tree-shaken, so only imported icons are included in your bundle.
+</Note>
+
+## Typography
+
+ZeroStarter includes four variable fonts:
+
+- **DM Sans** (sans-serif) - Primary UI font
+- **Newsreader** (serif) - Headings and display text
+- **Caveat** (cursive) - Decorative text
+- **JetBrains Mono** (monospace) - Code and technical content
+
+```tsx
+<h1 className="font-serif text-4xl font-bold">Beautiful Heading</h1>
+<p className="font-sans text-base">Body text content</p>
+<code className="font-mono text-sm">const code = true</code>
+<span className="font-cursive text-2xl">Handwritten style</span>
+```
+
+## Component Library
+
+ZeroStarter includes 55+ components:
+
+<AccordionGroup>
+  <Accordion title="Form Components">
+    - Input
+    - Textarea
+    - Select
+    - Checkbox
+    - Radio Group
+    - Switch
+    - Slider
+    - Date Picker (react-day-picker)
+    - Input OTP
+    - Combobox
+    - Command
+  </Accordion>
+  
+  <Accordion title="Layout Components">
+    - Card
+    - Separator
+    - Sidebar
+    - Resizable Panels
+    - Breadcrumb
+    - Navigation Menu
+    - Tabs
+    - Accordion
+    - Collapsible
+  </Accordion>
+  
+  <Accordion title="Overlay Components">
+    - Dialog
+    - Alert Dialog
+    - Drawer (Vaul)
+    - Popover
+    - Context Menu
+    - Dropdown Menu
+    - Tooltip
+    - Sheet
+  </Accordion>
+  
+  <Accordion title="Feedback Components">
+    - Toast (Sonner)
+    - Alert
+    - Badge
+    - Progress
+    - Skeleton
+    - Avatar
+  </Accordion>
+  
+  <Accordion title="Data Display">
+    - Table
+    - Chart (Recharts)
+    - Carousel (Embla)
+    - Calendar
+  </Accordion>
+</AccordionGroup>
+
+## Adding New Components
+
+Use the Shadcn CLI to add components:
+
+```bash
+bunx shadcn@latest add [component-name]
+```
+
+Example:
+```bash
+# Add a single component
+bunx shadcn@latest add button
+
+# Add multiple components
+bunx shadcn@latest add card dialog form
+```
+
+<Warning>
+  Components are copied to your project, not installed as dependencies. This gives you full control to customize them.
+</Warning>
+
+## Customization
+
+### Modify component variants
+
+Edit the component file directly:
+
+```typescript components/ui/button.tsx
+const buttonVariants = cva(
+  // base styles...
+  {
+    variants: {
+      variant: {
+        // Add your custom variant
+        brand: "bg-gradient-to-r from-blue-500 to-purple-600 text-white",
+      },
+    },
+  },
+)
+```
+
+### Create custom components
+
+Follow the same pattern as existing components:
+
+```typescript components/ui/feature-card.tsx
+import { cn } from "@/lib/utils"
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+
+interface FeatureCardProps {
+  title: string
+  description: string
+  icon: React.ReactNode
+  className?: string
+}
+
+export function FeatureCard({
+  title,
+  description,
+  icon,
+  className,
+}: FeatureCardProps) {
+  return (
+    <Card className={cn("hover:shadow-lg transition-shadow", className)}>
+      <CardHeader>
+        <div className="mb-2 text-primary">{icon}</div>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
+  )
+}
+```
+
+## Best Practices
+
+<Steps>
+
+### Use semantic HTML
+
+Components are built on semantic HTML elements for accessibility:
+
+```tsx
+// ✅ Good - semantic and accessible
+<Button asChild>
+  <a href="/projects">View Projects</a>
+</Button>
+
+// ❌ Avoid - non-semantic
+<Button onClick={() => router.push("/projects")}>
+  View Projects
+</Button>
+```
+
+### Compose components
+
+Build complex UIs by composing simple components:
+
+```tsx
+<Card>
+  <CardHeader>
+    <CardTitle>User Profile</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="flex items-center gap-4">
+      <Avatar>
+        <AvatarImage src={user.image} />
+        <AvatarFallback>{user.name[0]}</AvatarFallback>
+      </Avatar>
+      <div>
+        <p className="font-medium">{user.name}</p>
+        <p className="text-sm text-muted-foreground">{user.email}</p>
+      </div>
+    </div>
+  </CardContent>
+</Card>
+```
+
+### Maintain consistency
+
+Use the design system consistently:
+- Stick to defined color variables
+- Use spacing scale (px-2, py-4, gap-3, etc.)
+- Follow component variant patterns
+- Keep typography hierarchy consistent
+
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Shadcn UI" icon="palette" href="https://ui.shadcn.com">
+    Explore all available components and examples
+  </Card>
+  <Card title="Tailwind CSS" icon="paintbrush" href="https://tailwindcss.com">
+    Learn Tailwind's utility classes and customization
+  </Card>
+</CardGroup>

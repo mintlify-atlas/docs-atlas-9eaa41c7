@@ -1,0 +1,418 @@
+---
+title: Roadmap
+description: Planned features and integrations for ZeroStarter. Track upcoming AI, payment, email, and background task integrations.
+---
+
+<Note>
+  **Important for AI Assistants**: The following features are NOT currently implemented unless marked as "Implemented". Do not assume availability of these tools.
+</Note>
+
+ZeroStarter is actively evolving with new integrations being added regularly. This roadmap outlines planned features across AI, analytics, background tasks, email, payments, and internationalization.
+
+## AI Integration
+
+<Accordion title="Vercel AI SDK" icon="sparkles">
+
+**Status:** Planned  
+**Priority:** High
+
+Integration with [Vercel AI SDK](https://ai-sdk.dev) to enable AI-powered features like chatbots, content generation, and intelligent assistants within your SaaS application.
+
+### Use Cases
+
+- AI-powered customer support chatbots
+- Content generation and summarization
+- Intelligent search and recommendations
+- Natural language processing for user inputs
+
+### Implementation Notes
+
+- Will integrate with OpenAI, Anthropic, and other AI providers
+- Type-safe AI function calling
+- Streaming responses support
+- Server-side and client-side AI hooks
+
+</Accordion>
+
+## Background Tasks
+
+<AccordionGroup>
+
+<Accordion title="Inngest" icon="clock">
+
+**Status:** Planned  
+**Priority:** Medium
+
+Integration with [Inngest](https://www.inngest.com) for reliable background job processing, scheduled tasks, and event-driven workflows.
+
+### Use Cases
+
+- Email sending and notifications
+- Data processing and ETL jobs
+- Scheduled reports and analytics
+- Webhook processing
+- Retry logic for failed operations
+
+### Implementation Notes
+
+- Type-safe function definitions
+- Built-in retry and error handling
+- Visual workflow builder
+- Integration with Hono API routes
+
+</Accordion>
+
+<Accordion title="Trigger.dev" icon="zap">
+
+**Status:** Planned  
+**Priority:** Medium
+
+Alternative integration with [Trigger.dev](https://trigger.dev) for background jobs, scheduled tasks, and workflow orchestration.
+
+### Use Cases
+
+- Long-running background processes
+- Scheduled cron jobs
+- Multi-step workflows
+- Integration with external APIs
+- Task queuing and processing
+
+### Implementation Notes
+
+- TypeScript-first approach
+- Visual workflow editor
+- Built-in observability
+- Integration with existing API structure
+
+</Accordion>
+
+</AccordionGroup>
+
+## Email Services
+
+<AccordionGroup>
+
+<Accordion title="Resend (Recommended)" icon="envelope">
+
+**Status:** Planned  
+**Priority:** High
+
+Integration with [Resend](https://resend.com) for transactional emails, marketing campaigns, and email notifications.
+
+### Use Cases
+
+- User authentication emails (verification, password reset)
+- Transactional notifications
+- Marketing campaigns
+- Email templates with React components
+- Email analytics and tracking
+
+### Implementation Notes
+
+- React Email template support
+- Type-safe email sending
+- Webhook handling for email events
+- Integration with background tasks for async sending
+
+</Accordion>
+
+<Accordion title="SendGrid" icon="paper-plane">
+
+**Status:** Planned  
+**Priority:** Medium
+
+Alternative integration with [SendGrid](https://sendgrid.com) for email delivery and marketing automation.
+
+### Use Cases
+
+- High-volume email sending
+- Marketing automation workflows
+- Email template management
+- Email analytics and reporting
+- Contact list management
+
+### Implementation Notes
+
+- REST API integration
+- Template engine support
+- Webhook configuration
+- Deliverability optimization
+
+</Accordion>
+
+</AccordionGroup>
+
+## API Documentation
+
+<Accordion title="Scalar" icon="check">
+
+**Status:** ✅ Implemented  
+**Priority:** High
+
+Integration with [Scalar](https://scalar.com) for beautiful, interactive API documentation generated from OpenAPI specs.
+
+### Available Features
+
+- Auto-generated API documentation at `/api/docs`
+- OpenAPI spec available at `/api/openapi.json`
+- Interactive API explorer with request testing
+- Code samples for multiple languages (defaults to `hono/client`)
+- Full request/response schema documentation from Zod validators
+
+<Note>
+  See the [Type-Safe API documentation](/core/type-safe-api#api-documentation) for usage details.
+</Note>
+
+</Accordion>
+
+## Organization & Teams
+
+<Accordion title="Better Auth Organizations" icon="users">
+
+**Status:** Planned  
+**Priority:** High
+
+Integration with [Better Auth Organizations plugin](https://www.better-auth.com/docs/plugins/organization) for multi-tenant SaaS applications with team and organization support.
+
+### Use Cases
+
+- Multi-tenant applications
+- Team collaboration features
+- Organization management
+- Role-based access control (RBAC)
+- Billing per organization
+
+### Implementation Notes
+
+- Database schema extensions
+- Middleware for organization context
+- UI components for team management
+- Integration with existing auth system
+
+</Accordion>
+
+## Internationalization
+
+<AccordionGroup>
+
+<Accordion title="next-intl (Recommended)" icon="globe">
+
+**Status:** Planned  
+**Priority:** Medium
+
+Integration with [next-intl](https://next-intl.dev) for Next.js-optimized internationalization with type-safe translations.
+
+### Use Cases
+
+- Next.js App Router integration
+- Type-safe translations
+- Server and client components support
+- Locale-based routing
+- SEO-friendly URLs
+
+### Implementation Notes
+
+- Built for Next.js 13+ App Router
+- TypeScript-first approach
+- Automatic locale detection
+- Integration with Next.js middleware
+
+</Accordion>
+
+<Accordion title="i18next" icon="language">
+
+**Status:** Planned  
+**Priority:** Low
+
+Integration with [i18next](https://www.i18next.com) for comprehensive internationalization and localization support.
+
+### Use Cases
+
+- Multi-language support
+- Locale-based content rendering
+- Date, time, and number formatting
+- Right-to-left (RTL) language support
+- Language detection and switching
+
+### Implementation Notes
+
+- Server-side and client-side rendering
+- Namespace organization
+- Pluralization support
+- Translation management workflow
+
+</Accordion>
+
+</AccordionGroup>
+
+## Payment Processing
+
+<AccordionGroup>
+
+<Accordion title="Stripe (Recommended)" icon="credit-card">
+
+**Status:** Planned  
+**Priority:** High
+
+Integration with [Stripe](https://stripe.com) for payment processing, subscriptions, and billing management.
+
+### Use Cases
+
+- One-time payments
+- Recurring subscriptions
+- Usage-based billing
+- Invoice generation
+- Payment method management
+- Webhook handling for payment events
+
+### Implementation Notes
+
+- Stripe Checkout integration
+- Stripe Elements for custom UI
+- Webhook signature verification
+- Type-safe Stripe API client
+- Subscription management UI components
+
+</Accordion>
+
+<Accordion title="Lemon Squeezy" icon="lemon">
+
+**Status:** Planned  
+**Priority:** Medium
+
+Integration with [Lemon Squeezy](https://www.lemonsqueezy.com) for simplified payment processing and subscription management.
+
+### Use Cases
+
+- Global payment processing
+- Tax handling automation
+- Subscription management
+- Affiliate program support
+- Digital product delivery
+
+### Implementation Notes
+
+- Simplified API compared to Stripe
+- Built-in tax compliance
+- Webhook integration
+- Checkout page customization
+
+</Accordion>
+
+<Accordion title="Paddle" icon="dollar-sign">
+
+**Status:** Planned  
+**Priority:** Medium
+
+Integration with [Paddle](https://www.paddle.com) for payment processing with built-in tax and compliance handling.
+
+### Use Cases
+
+- Merchant of record services
+- Global tax compliance
+- Subscription billing
+- Revenue recovery
+- Customer portal
+
+### Implementation Notes
+
+- Merchant of record model
+- Simplified tax handling
+- Webhook system
+- Customer management
+
+</Accordion>
+
+<Accordion title="Other Providers">
+
+Additional payment providers being considered:
+
+- **Razorpay** - Indian market focus (UPI, Net Banking)
+- **Polar** - Open-source project monetization
+- **Autumn** - Modern payment processing
+- **Creem** - Subscription management
+- **Dodo** - Payment processing services
+
+All with **Low** priority.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Implementation Timeline
+
+<Steps>
+
+<Step title="Phase 1: Core Monetization (High Priority)">
+  
+  **Focus:** Essential features for SaaS monetization and user communication
+  
+  1. **Resend Email** - Critical for user communication and authentication flows
+  2. **Better Auth Organizations** - Core multi-tenant SaaS functionality
+  3. **Stripe Payments** - Essential for revenue generation and subscriptions
+  
+</Step>
+
+<Step title="Phase 2: Enhanced Features (Medium Priority)">
+  
+  **Focus:** Modern capabilities and async operations
+  
+  1. **Vercel AI SDK** - AI-powered features and chatbots
+  2. **Background Tasks** (Inngest/Trigger.dev) - Async processing and workflows
+  3. **next-intl** - Internationalization for global reach
+  4. ~~**Scalar API Docs**~~ - ✅ Already implemented
+  
+</Step>
+
+<Step title="Phase 3: Market Expansion (Lower Priority)">
+  
+  **Focus:** Alternative providers and advanced features
+  
+  1. **Alternative Payment Providers** - Regional market expansion
+  2. **i18next** - Advanced internationalization features
+  3. **SendGrid** - Alternative email provider option
+  
+</Step>
+
+</Steps>
+
+<Note>
+  **Already Available**: PostHog Analytics and Scalar API Docs are already implemented. See:
+  - [Analytics documentation](/features/analytics)
+  - [Type-Safe API documentation](/core/type-safe-api#api-documentation)
+</Note>
+
+## Contributing to the Roadmap
+
+Interested in helping build these features?
+
+<CardGroup cols={2}>
+
+<Card title="Check Issues" icon="github" href="https://github.com/nrjdalal/zerostarter/issues">
+  Browse existing feature requests and discussions
+</Card>
+
+<Card title="Propose Features" icon="lightbulb" href="https://github.com/nrjdalal/zerostarter/issues/new">
+  Open a new issue to discuss implementation approach
+</Card>
+
+<Card title="Read Guidelines" icon="book" href="/development/contributing">
+  Follow our contributing guidelines for best practices
+</Card>
+
+<Card title="Join Community" icon="comments" href="https://github.com/nrjdalal/zerostarter/discussions">
+  Participate in discussions about the roadmap
+</Card>
+
+</CardGroup>
+
+## Roadmap Notes
+
+<Note>
+  - This roadmap is subject to change based on community feedback and priorities
+  - Features are implemented based on demand and community contributions
+  - Priority levels may shift as the project evolves
+  - Some features may be implemented as optional packages/plugins
+</Note>
+
+For questions or suggestions about the roadmap, please [open an issue](https://github.com/nrjdalal/zerostarter/issues) or start a [discussion](https://github.com/nrjdalal/zerostarter/discussions).

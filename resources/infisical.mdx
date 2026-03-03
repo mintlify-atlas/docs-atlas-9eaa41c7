@@ -1,0 +1,443 @@
+---
+title: Infisical
+description: Secrets management on autopilot with Infisical for secure application configuration.
+---
+
+## Overview
+
+Infisical is an all-in-one platform to securely manage application configuration and secrets across your team and infrastructure. Used by Fortune 500 enterprises, international governments, and fastest-growing startups, Infisical helps you save time and boost security.
+
+<Note>
+ZeroStarter includes Infisical configuration via `.infisical.json` for seamless secrets management across development, staging, and production environments.
+</Note>
+
+## Why Infisical?
+
+- **Secure Secret Management** - Centralized, encrypted storage for all secrets
+- **Environment Sync** - Automatically sync secrets across dev, staging, and production
+- **Team Collaboration** - Share secrets securely with team members
+- **Version Control** - Track secret changes and roll back if needed
+- **CLI Integration** - Export secrets to `.env` files for local development
+- **Self-Hosting Option** - Full control over your infrastructure
+
+## Self-Hosting
+
+Deploy Infisical to your own infrastructure with one click:
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/infisical-resend?referralCode=nrjdalal&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
+<Accordion title="Why self-host?">
+
+- **Data Sovereignty** - Keep secrets in your own infrastructure
+- **Custom Compliance** - Meet specific regulatory requirements
+- **Cost Control** - No per-seat pricing for large teams
+- **Network Isolation** - Secrets never leave your VPC
+
+</Accordion>
+
+## Project Configuration
+
+ZeroStarter includes a `.infisical.json` file at the repository root:
+
+```json title=".infisical.json"
+{
+  "workspaceId": "0d62b0f6-cdd4-4c8e-9e27-f977aadc123d",
+  "defaultEnvironment": "",
+  "gitBranchToEnvironmentMapping": null
+}
+```
+
+<Accordion title="Configuration fields">
+
+- `workspaceId` - Your Infisical project ID (generated during `infisical init`)
+- `defaultEnvironment` - Default environment to use (dev, staging, prod)
+- `gitBranchToEnvironmentMapping` - Map Git branches to Infisical environments
+
+</Accordion>
+
+## Installation
+
+### Install Infisical CLI
+
+Install the Infisical CLI globally using Bun:
+
+```bash
+bun add -g @infisical/cli
+```
+
+Verify installation:
+
+```bash
+infisical --version
+```
+
+## Setup
+
+<Steps>
+
+<Step title="Login to Infisical">
+
+Authenticate with your Infisical account:
+
+**Interactive login** (recommended for local development):
+
+```bash
+infisical login
+```
+
+This opens a browser window for authentication.
+
+**Non-interactive login** (for CI/CD):
+
+```bash
+infisical login \
+  --domain "<YOUR_DOMAIN>" \
+  --email "<YOUR_EMAIL>" \
+  --password "<YOUR_PASSWORD>" \
+  --organization-id "<YOUR_ORGANIZATION_ID>" \
+  --plain \
+  --silent
+```
+
+<Accordion title="Flag explanations">
+
+- `--plain` - Outputs only the JWT access token without formatting (useful for scripting)
+- `--silent` - Disables all console messages except the access token
+- Use both flags together for CI/CD pipelines
+
+</Accordion>
+
+</Step>
+
+<Step title="Initialize project">
+
+Link your local ZeroStarter project to Infisical:
+
+```bash
+infisical init
+```
+
+This command:
+1. Prompts you to select your Infisical project
+2. Creates `.infisical.json` with your `workspaceId`
+3. Establishes the connection for secret syncing
+
+<Note>
+The `.infisical.json` file is already included in ZeroStarter. You can run `infisical init` to update the workspace ID.
+</Note>
+
+</Step>
+
+<Step title="Export secrets">
+
+Export secrets from Infisical to a local `.env` file:
+
+```bash
+infisical export --env=dev --output-file=.env.development
+```
+
+For different environments:
+
+```bash
+# Development environment
+infisical export --env=dev --output-file=.env.development
+
+# Staging environment
+infisical export --env=staging --output-file=.env.staging
+
+# Production environment
+infisical export --env=prod --output-file=.env.production
+```
+
+</Step>
+
+</Steps>
+
+## CLI Reference
+
+### Login
+
+Authenticate with Infisical:
+
+```bash
+infisical login [OPTIONS]
+```
+
+**Options**:
+
+- `--domain` - Your Infisical instance URL
+- `--email` - Account email
+- `--password` - Account password
+- `--organization-id` - Organization ID
+- `--plain` - Output only JWT token
+- `--silent` - Suppress all messages except token
+
+### Init
+
+Link local project to Infisical workspace:
+
+```bash
+infisical init
+```
+
+Creates `.infisical.json` with your project configuration.
+
+### Export
+
+Export secrets to different file formats:
+
+```bash
+infisical export [OPTIONS]
+```
+
+**Options**:
+
+- `--env=<environment>` - Environment to export from (dev, staging, prod). Defaults to `dev`.
+- `--output-file=<path>` - Path to output file (e.g., `.env.development`)
+- `--projectId=<id>` - Override project ID from `.infisical.json`
+- `--format=<format>` - Output format (dotenv, json, yaml, csv)
+
+**Examples**:
+
+```bash
+# Export to .env file
+infisical export --env=dev --output-file=./.env.development
+
+# Export as JSON
+infisical export --env=prod --format=json --output-file=secrets.json
+
+# Override project ID
+infisical export --env=staging --projectId=abc123 --output-file=.env.staging
+```
+
+## Environment Structure
+
+ZeroStarter uses these environment files:
+
+```
+zerostarter/
+├── .env.example          # Template with all required variables
+├── .env.development      # Development secrets (git-ignored)
+├── .env.staging          # Staging secrets (git-ignored)
+└── .env.production       # Production secrets (git-ignored)
+```
+
+### Environment Variables in ZeroStarter
+
+Based on `.env.example`, ZeroStarter requires:
+
+<Tabs items={['Server', 'Client', 'Optional']}>
+
+<Tab value="Server">
+```bash
+# Server Configuration
+NODE_ENV=local
+HONO_APP_URL=http://localhost:4000
+HONO_TRUSTED_ORIGINS=http://localhost:3000
+
+# Authentication
+BETTER_AUTH_SECRET=<generate with: openssl rand -base64 32>
+
+# OAuth Providers
+GITHUB_CLIENT_ID=<from github.com/settings/developers>
+GITHUB_CLIENT_SECRET=<from github.com/settings/developers>
+GOOGLE_CLIENT_ID=<from console.cloud.google.com/apis/credentials>
+GOOGLE_CLIENT_SECRET=<from console.cloud.google.com/apis/credentials>
+
+# Database
+POSTGRES_URL=<generate with: bunx pglaunch -k>
+```
+</Tab>
+
+<Tab value="Client">
+```bash
+# Client Configuration
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+</Tab>
+
+<Tab value="Optional">
+```bash
+# Analytics (Optional)
+NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+NEXT_PUBLIC_POSTHOG_KEY=<from posthog.com>
+
+# User Feedback (Optional)
+NEXT_PUBLIC_USERJOT_URL=<your userjot URL>
+```
+</Tab>
+
+</Tabs>
+
+## Workflow
+
+### Local Development
+
+<Steps>
+
+<Step title="Export secrets">
+```bash
+infisical export --env=dev --output-file=.env.development
+```
+</Step>
+
+<Step title="Start development servers">
+```bash
+bun dev
+```
+
+The app automatically loads `.env.development` via `@packages/env`.
+</Step>
+
+<Step title="Update secrets">
+When secrets change in Infisical, re-run the export command:
+```bash
+infisical export --env=dev --output-file=.env.development
+```
+</Step>
+
+</Steps>
+
+### CI/CD Pipeline
+
+Integrate Infisical in your CI/CD for automated secret injection:
+
+```yaml title=".github/workflows/deploy.yml"
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Infisical CLI
+        run: |
+          curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' | sudo -E bash
+          sudo apt-get update && sudo apt-get install -y infisical
+      
+      - name: Export production secrets
+        run: |
+          infisical export \
+            --env=prod \
+            --output-file=.env.production \
+            --token=${{ secrets.INFISICAL_TOKEN }}
+      
+      - name: Deploy
+        run: |
+          # Your deployment commands here
+          bun run build
+```
+
+<Note>
+Store `INFISICAL_TOKEN` in GitHub Secrets for secure CI/CD authentication.
+</Note>
+
+## Git Branch Mapping
+
+Map Git branches to Infisical environments automatically:
+
+```json title=".infisical.json"
+{
+  "workspaceId": "0d62b0f6-cdd4-4c8e-9e27-f977aadc123d",
+  "defaultEnvironment": "dev",
+  "gitBranchToEnvironmentMapping": {
+    "main": "prod",
+    "staging": "staging",
+    "develop": "dev"
+  }
+}
+```
+
+With this configuration:
+
+- `main` branch → uses `prod` environment
+- `staging` branch → uses `staging` environment  
+- `develop` branch → uses `dev` environment
+- Other branches → use `defaultEnvironment` (dev)
+
+## Security Best Practices
+
+<Steps>
+
+<Step title="Never commit secrets">
+Ensure `.env*` files (except `.env.example`) are in `.gitignore`:
+
+```bash title=".gitignore"
+# Environment files
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+.env*.local
+```
+</Step>
+
+<Step title="Use Infisical for all environments">
+Manage dev, staging, and prod secrets in Infisical, not local files.
+</Step>
+
+<Step title="Rotate secrets regularly">
+Use Infisical's secret rotation features for sensitive credentials.
+</Step>
+
+<Step title="Use service tokens for CI/CD">
+Create dedicated service tokens with minimal permissions for automation.
+</Step>
+
+<Step title="Enable audit logs">
+Track who accessed or modified secrets in Infisical.
+</Step>
+
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+
+<Accordion title="infisical: command not found">
+Install the CLI:
+```bash
+bun add -g @infisical/cli
+```
+
+Verify installation:
+```bash
+infisical --version
+```
+</Accordion>
+
+<Accordion title="Authentication failed">
+1. Check your credentials are correct
+2. Verify organization ID is accurate
+3. Try interactive login: `infisical login`
+4. Check Infisical instance is accessible
+</Accordion>
+
+<Accordion title="Project not found">
+1. Run `infisical init` to link project
+2. Verify `workspaceId` in `.infisical.json` matches your Infisical project
+3. Check you have access to the project in Infisical dashboard
+</Accordion>
+
+<Accordion title="Secrets not loading in app">
+1. Verify `.env.development` file exists and has correct variables
+2. Check file is not in `.gitignore` preventing it from being read
+3. Restart development servers: `bun dev`
+4. Verify `@packages/env` is correctly configured
+</Accordion>
+
+</AccordionGroup>
+
+## Read More
+
+- [Official Infisical CLI Reference](https://infisical.com/docs/cli/overview)
+- [Infisical Self-Hosting Guide](https://infisical.com/docs/self-hosting/overview)
+- [ZeroStarter Environment Variables](/management/environment)
+- [Type-Safe Environment Variables with @packages/env](/architecture#packages)

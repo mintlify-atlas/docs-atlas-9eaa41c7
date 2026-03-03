@@ -1,0 +1,341 @@
+---
+title: IDE Setup
+description: Recommended IDE configuration for ZeroStarter with VS Code, Cursor, and other editors.
+---
+
+## Overview
+
+ZeroStarter includes optimized IDE configuration for a consistent development experience across the team. The project is configured with modern tooling focused on speed and developer experience.
+
+## Visual Studio Code
+
+### Recommended Extensions
+
+The project includes an `.vscode/extensions.json` file with recommended extensions:
+
+```json title=".vscode/extensions.json"
+{
+  "recommendations": ["oxc.oxc-vscode"]
+}
+```
+
+<Note>
+VS Code will automatically prompt you to install recommended extensions when you open the project.
+</Note>
+
+#### Oxc Extension
+
+The [Oxc extension](https://marketplace.visualstudio.com/items?itemName=oxc.oxc-vscode) provides:
+
+- **Fast Linting** with Oxlint - Written in Rust, 50-100x faster than ESLint
+- **Fast Formatting** with Oxfmt - High-performance code formatter
+- **Real-time Feedback** - Instant linting and formatting as you type
+
+**Installation**:
+
+```bash
+code --install-extension oxc.oxc-vscode
+```
+
+Or search for "Oxc" in the VS Code Extensions marketplace.
+
+### Editor Settings
+
+The project includes pre-configured editor settings in `.vscode/settings.json`:
+
+```json title=".vscode/settings.json"
+{
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true
+}
+```
+
+<Accordion title="What these settings do">
+
+- `editor.defaultFormatter` - Sets Oxc as the default formatter for all files
+- `editor.formatOnSave` - Automatically formats files when you save them
+
+</Accordion>
+
+### Additional Recommended Extensions
+
+While not included in the default configuration, these extensions enhance the development experience:
+
+<AccordionGroup>
+
+<Accordion title="Tailwind CSS IntelliSense">
+**Extension ID**: `bradlc.vscode-tailwindcss`
+
+Provides autocomplete, syntax highlighting, and linting for Tailwind CSS classes.
+
+```bash
+code --install-extension bradlc.vscode-tailwindcss
+```
+</Accordion>
+
+<Accordion title="MDX">
+**Extension ID**: `unifiedjs.vscode-mdx`
+
+Syntax highlighting and language support for MDX files (used in Fumadocs).
+
+```bash
+code --install-extension unifiedjs.vscode-mdx
+```
+</Accordion>
+
+<Accordion title="Prisma/Drizzle">
+**Extension ID**: `Drizzle-Team.drizzle-vscode`
+
+Syntax highlighting for Drizzle ORM schema files.
+
+```bash
+code --install-extension Drizzle-Team.drizzle-vscode
+```
+</Accordion>
+
+<Accordion title="Better Comments">
+**Extension ID**: `aaron-bond.better-comments`
+
+Color-coded comments for TODOs, warnings, etc. (though ZeroStarter favors minimal comments).
+
+```bash
+code --install-extension aaron-bond.better-comments
+```
+</Accordion>
+
+</AccordionGroup>
+
+## Cursor
+
+[Cursor](https://cursor.sh) is an AI-powered code editor built on VS Code. It uses the same configuration automatically.
+
+### Why Cursor Works Well with ZeroStarter
+
+<Steps>
+
+<Step title="VS Code Compatibility">
+Cursor is based on VS Code, so it automatically reads:
+- `.vscode/extensions.json`
+- `.vscode/settings.json`
+- All VS Code extensions
+</Step>
+
+<Step title="AI Instructions">
+Cursor reads `AGENTS.md` at the repository root for project-specific AI guidance:
+
+```markdown title="AGENTS.md"
+# AGENTS.md
+
+## Instructions
+
+- Do not comment unnecessarily. Only comment if it is absolutely necessary.
+- Use `@/` for imports, if applicable.
+```
+</Step>
+
+<Step title="Claude Integration">
+Cursor can reference `CLAUDE.md` for comprehensive project context, including:
+- Development commands
+- Architecture overview
+- Code style conventions
+- Git hook information
+</Step>
+
+</Steps>
+
+### Cursor-Specific Features
+
+<Accordion title="Cmd+K for AI Edits">
+Use Cursor's inline AI editing to refactor code while maintaining ZeroStarter conventions.
+</Accordion>
+
+<Accordion title="Chat with Codebase">
+Ask questions about the monorepo architecture, type-safe API patterns, or specific implementations.
+</Accordion>
+
+<Accordion title="AI Code Generation">
+Generate new routes, components, or database schemas that follow project patterns.
+</Accordion>
+
+## Other Editors
+
+### WebStorm / IntelliJ IDEA
+
+For JetBrains IDEs:
+
+1. **Install Oxc Plugin** (if available) or configure Prettier/ESLint as fallback
+2. **Enable Format on Save**:
+   - Settings → Tools → Actions on Save
+   - Check "Reformat code"
+3. **Configure Import Aliases**:
+   - Settings → Editor → Code Style → TypeScript
+   - Add `@/*` path mapping to `src/*`
+
+### Neovim
+
+For Neovim users:
+
+```lua title="Oxc LSP Configuration (example)"
+-- Install oxc LSP via Mason or manual installation
+require('lspconfig').oxc.setup({
+  on_attach = on_attach,
+  capabilities = capabilities,
+})
+
+-- Format on save
+vim.api.nvim_create_autocmd("BufWritePre", {
+  pattern = "*",
+  callback = function()
+    vim.lsp.buf.format()
+  end,
+})
+```
+
+### Zed
+
+For Zed editor:
+
+```json title="settings.json"
+{
+  "formatter": "language_server",
+  "format_on_save": "on",
+  "lsp": {
+    "oxc": {
+      "initialization_options": {}
+    }
+  }
+}
+```
+
+## Monorepo Navigation
+
+ZeroStarter uses a Turborepo monorepo structure. Configure your IDE for efficient navigation:
+
+### Workspace Structure
+
+```
+zerostarter/
+├── api/
+│   └── hono/          # Backend API (port 4000)
+├── web/
+│   └── next/          # Frontend (port 3000)
+└── packages/
+    ├── auth/          # Better Auth config
+    ├── db/            # Drizzle ORM schema
+    ├── env/           # Environment variables
+    └── tsconfig/      # TypeScript configs
+```
+
+### Quick Navigation Tips
+
+<Steps>
+
+<Step title="Use path aliases">
+Jump to imports using `@/` aliases:
+
+```ts
+// Cmd/Ctrl + Click to navigate
+import { apiClient } from "@/lib/api/client"
+import { auth } from "@/lib/auth"
+```
+</Step>
+
+<Step title="Search across workspace">
+Use workspace-wide search (Cmd/Ctrl + Shift + F) to find code across all packages.
+</Step>
+
+<Step title="Filter by package">
+In VS Code, use the file explorer to focus on specific apps or packages.
+</Step>
+
+</Steps>
+
+## Format on Save
+
+All editors should be configured to format on save for consistency:
+
+<Tabs items={['VS Code', 'Cursor', 'WebStorm']}>
+
+<Tab value="VS Code">
+```json title=".vscode/settings.json"
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "oxc.oxc-vscode"
+}
+```
+</Tab>
+
+<Tab value="Cursor">
+Cursor inherits VS Code settings automatically. No additional configuration needed.
+</Tab>
+
+<Tab value="WebStorm">
+1. Settings → Tools → Actions on Save
+2. Check "Reformat code"
+3. Check "Optimize imports"
+</Tab>
+
+</Tabs>
+
+## TypeScript Configuration
+
+ZeroStarter uses shared TypeScript configurations via `@packages/tsconfig`:
+
+```json title="packages/tsconfig/base.json" 
+{
+  "compilerOptions": {
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+### IDE TypeScript Settings
+
+<Note>
+Ensure your IDE uses the workspace TypeScript version:
+
+**VS Code/Cursor**: Cmd/Ctrl + Shift + P → "TypeScript: Select TypeScript Version" → "Use Workspace Version"
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+
+<Accordion title="Oxc extension not working">
+1. Check extension is installed: `code --list-extensions | grep oxc`
+2. Restart VS Code/Cursor
+3. Check Output panel (View → Output → Oxc) for errors
+4. Verify `.vscode/settings.json` has correct formatter setting
+</Accordion>
+
+<Accordion title="Import aliases not resolving">
+1. Check `tsconfig.json` includes path mappings:
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
+2. Restart TypeScript server: Cmd/Ctrl + Shift + P → "TypeScript: Restart TS Server"
+</Accordion>
+
+<Accordion title="Format on save not working">
+1. Verify `.vscode/settings.json` has `"editor.formatOnSave": true`
+2. Check file is not in `.prettierignore` or `.eslintignore`
+3. Try manual format: Cmd/Ctrl + Shift + F
+4. Check Output panel for formatter errors
+</Accordion>
+
+</AccordionGroup>
+
+## Next Steps
+
+- [AI Skills](/resources/ai-skills) - Learn about AI assistant integration
+- [Scripts](/core/scripts) - Available development commands
+- [Project Structure](/core/project-structure) - Understand the monorepo layout

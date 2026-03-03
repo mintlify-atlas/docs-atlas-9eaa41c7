@@ -1,0 +1,471 @@
+---
+title: Installation
+description: Complete installation guide for ZeroStarter including prerequisites, environment configuration, and optional integrations.
+---
+
+# Installation
+
+This guide covers the complete setup process for ZeroStarter, including all prerequisites, environment configuration, database setup, and optional integrations like OAuth providers and analytics.
+
+## Prerequisites
+
+Before installing ZeroStarter, ensure you have the following installed on your system:
+
+### Required
+
+<Steps>
+  <Step title="Bun Runtime">
+    ZeroStarter requires **Bun v1.3.7** or higher.
+    
+    Install Bun:
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+    
+    Verify installation:
+    ```bash
+    bun --version
+    # Should output: 1.3.7 or higher
+    ```
+  </Step>
+  
+  <Step title="PostgreSQL Database">
+    You need a PostgreSQL database (version 12 or higher).
+    
+    **Option 1: Local PostgreSQL**
+    ```bash
+    # macOS
+    brew install postgresql@16
+    brew services start postgresql@16
+    
+    # Ubuntu/Debian
+    sudo apt install postgresql postgresql-contrib
+    sudo systemctl start postgresql
+    ```
+    
+    **Option 2: Managed Database**
+    - [Neon](https://neon.tech) (recommended for development)
+    - [Supabase](https://supabase.com)
+    - [Railway](https://railway.app)
+    - [Vercel Postgres](https://vercel.com/storage/postgres)
+    
+    <Tip>
+      Use `bunx pglaunch -k` to quickly generate a free PostgreSQL URL from supported providers.
+    </Tip>
+  </Step>
+  
+  <Step title="Git">
+    Required for version control.
+    ```bash
+    git --version
+    ```
+  </Step>
+</Steps>
+
+### Optional
+
+- **Node.js**: While not required (Bun is used), some tools may expect it
+- **Docker**: For containerized deployment
+- **pnpm/npm**: Only if you prefer these over Bun (not recommended)
+
+## Installation Steps
+
+### 1. Clone the Repository
+
+Clone ZeroStarter using `gitpick` for a clean copy without git history:
+
+```bash
+bunx gitpick https://github.com/nrjdalal/zerostarter/tree/main
+cd zerostarter
+```
+
+<Tip>
+  Alternatively, you can fork the repository on GitHub and clone your fork:
+  ```bash
+  git clone https://github.com/YOUR_USERNAME/zerostarter.git
+  cd zerostarter
+  ```
+</Tip>
+
+### 2. Install Dependencies
+
+Install all workspace dependencies:
+
+```bash
+bun install
+```
+
+This installs dependencies for:
+- `api/hono` - Backend API server
+- `web/next` - Frontend application
+- `packages/auth` - Shared authentication
+- `packages/db` - Database and ORM
+- `packages/env` - Environment variables
+- `packages/tsconfig` - TypeScript configuration
+
+<Note>
+  The `postinstall` script automatically runs dependency management tasks. This is configured in `package.json:31`.
+</Note>
+
+### 3. Environment Configuration
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Now configure your `.env` file:
+
+#### Essential Variables
+
+<CodeGroup>
+```bash Server Configuration
+# Environment (local, development, staging, production)
+NODE_ENV=local
+
+# API Server Configuration
+HONO_APP_URL=http://localhost:4000
+HONO_TRUSTED_ORIGINS=http://localhost:3000
+
+# Rate Limiting (requests per minute)
+HONO_RATE_LIMIT=60
+HONO_RATE_LIMIT_WINDOW_MS=60000
+```
+
+```bash Authentication
+# Generate using: openssl rand -base64 32
+BETTER_AUTH_SECRET="your-32-character-secret-here"
+```
+
+```bash Database
+# PostgreSQL connection string
+POSTGRES_URL="postgresql://user:password@localhost:5432/zerostarter"
+
+# Example formats:
+# Local: postgresql://postgres:password@localhost:5432/zerostarter
+# Neon: postgresql://user:password@ep-xxx.us-east-2.aws.neon.tech/neondb
+# Supabase: postgresql://postgres:password@db.xxx.supabase.co:5432/postgres
+```
+
+```bash Client Configuration
+# Frontend application URL
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Backend API URL
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+</CodeGroup>
+
+<Warning>
+  **Never commit your `.env` file to version control!** The `.gitignore` is configured to exclude it, but always double-check.
+</Warning>
+
+#### OAuth Providers (Optional)
+
+Configure social authentication providers:
+
+<AccordionGroup>
+  <Accordion title="GitHub OAuth">
+    1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+    2. Click "New OAuth App"
+    3. Fill in the details:
+       - Application name: `ZeroStarter Local`
+       - Homepage URL: `http://localhost:3000`
+       - Authorization callback URL: `http://localhost:3000/api/auth/callback/github`
+    4. Click "Register application"
+    5. Generate a client secret
+    6. Add to `.env`:
+    ```bash
+    GITHUB_CLIENT_ID="your-github-client-id"
+    GITHUB_CLIENT_SECRET="your-github-client-secret"
+    ```
+  </Accordion>
+  
+  <Accordion title="Google OAuth">
+    1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+    2. Create a new project or select an existing one
+    3. Navigate to "Credentials" > "Create Credentials" > "OAuth client ID"
+    4. Configure the OAuth consent screen if prompted
+    5. Select "Web application" as the application type
+    6. Add authorized redirect URIs:
+       - `http://localhost:3000/api/auth/callback/google`
+    7. Click "Create"
+    8. Add to `.env`:
+    ```bash
+    GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+    GOOGLE_CLIENT_SECRET="your-google-client-secret"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+#### Analytics (Optional)
+
+<Accordion title="PostHog Analytics">
+  PostHog provides product analytics, feature flags, and session recordings.
+  
+  1. Sign up at [PostHog](https://posthog.com)
+  2. Create a new project
+  3. Get your project API key
+  4. Add to `.env`:
+  ```bash
+  NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+  NEXT_PUBLIC_POSTHOG_KEY="phc_your-project-key"
+  ```
+  
+  See the [Analytics documentation](/features/analytics) for more details.
+</Accordion>
+
+### 4. Database Setup
+
+Generate and apply database migrations:
+
+<Steps>
+  <Step title="Generate Migrations">
+    Generate Drizzle ORM migrations from your schema:
+    ```bash
+    bun run db:generate
+    ```
+    
+    This reads your schema from `packages/db/src/schema/` and creates migration files in `packages/db/drizzle/`.
+  </Step>
+  
+  <Step title="Run Migrations">
+    Apply migrations to your database:
+    ```bash
+    bun run db:migrate
+    ```
+    
+    This creates all necessary tables for:
+    - User accounts
+    - Sessions
+    - OAuth accounts
+    - Email verification
+  </Step>
+  
+  <Step title="Verify Database">
+    Open Drizzle Studio to explore your database:
+    ```bash
+    bun run db:studio
+    ```
+    
+    This opens a web interface at `https://local.drizzle.studio` where you can:
+    - View all tables and data
+    - Run queries
+    - Modify records
+  </Step>
+</Steps>
+
+<Note>
+  The database schema is defined in `packages/db/src/schema/auth.ts` and uses Better Auth's schema conventions.
+</Note>
+
+### 5. Start Development
+
+Start all development servers:
+
+```bash
+bun dev
+```
+
+This command:
+1. Builds shared packages (`@packages/env`, `@packages/db`, `@packages/auth`)
+2. Starts the Hono API server at `http://localhost:4000`
+3. Starts the Next.js frontend at `http://localhost:3000`
+4. Enables hot module reloading for all packages
+
+You should see Turborepo's TUI showing logs from all services:
+
+```
+• Packages in scope: @api/hono, @web/next, @packages/auth, @packages/db, @packages/env
+• Running dev in 5 packages
+• Remote caching disabled
+
+@api/hono:dev: Server running at http://localhost:4000
+@web/next:dev: ▲ Next.js 16.1.6
+@web/next:dev: - Local:   http://localhost:3000
+```
+
+## Verification
+
+Verify your installation is working correctly:
+
+### API Health Check
+
+Test the API server:
+
+```bash
+curl http://localhost:4000/api/health
+```
+
+Expected response:
+```json
+{
+  "data": {
+    "message": "ok",
+    "version": "0.0.14",
+    "environment": "local"
+  }
+}
+```
+
+### Frontend
+
+Open [http://localhost:3000](http://localhost:3000) in your browser. You should see the ZeroStarter landing page.
+
+### API Documentation
+
+Visit [http://localhost:4000/api/docs](http://localhost:4000/api/docs) to explore the interactive API documentation powered by Scalar.
+
+### Type-Safe API Client
+
+Test the Hono RPC client by creating a test file:
+
+```typescript web/next/test-api.ts
+import { apiClient } from "@/lib/api/client"
+
+const response = await apiClient.health.$get()
+const { data } = await response.json()
+
+console.log(data) // Fully typed!
+```
+
+Run it:
+```bash
+bun web/next/test-api.ts
+```
+
+## Build for Production
+
+Build all packages and applications:
+
+```bash
+bun run build
+```
+
+This creates optimized production builds:
+- `api/hono/dist/` - Bundled API server
+- `web/next/.next/` - Next.js production build
+- `packages/*/dist/` - Built shared packages
+
+<Tip>
+  See the [Deployment documentation](/deployment/vercel) for production deployment guides.
+</Tip>
+
+## Package Scripts
+
+ZeroStarter includes many useful scripts defined in `package.json:20-35`:
+
+| Script | Description |
+|--------|-------------|
+| `bun dev` | Start development servers with TUI |
+| `bun build` | Build all packages and applications |
+| `bun run db:generate` | Generate Drizzle migrations |
+| `bun run db:migrate` | Run database migrations |
+| `bun run db:studio` | Open Drizzle Studio |
+| `bun run lint` | Lint all packages with Oxlint |
+| `bun run format` | Format code with Oxfmt |
+| `bun run format:check` | Check code formatting |
+| `bun run check-types` | Type-check all packages |
+| `bun run clean` | Remove build artifacts and node_modules |
+| `bun start` | Start production servers |
+
+<Note>
+  See the [Scripts documentation](/core/scripts) for detailed information about all available commands.
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Bun installation issues">
+    If Bun fails to install:
+    
+    ```bash
+    # Try the manual installation
+    curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.7"
+    
+    # Add to PATH (if not automatic)
+    echo 'export PATH="$HOME/.bun/bin:$PATH"' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+  </Accordion>
+  
+  <Accordion title="Database connection errors">
+    Common database issues:
+    
+    **Connection refused**:
+    - Verify PostgreSQL is running: `pg_isready`
+    - Check the connection string format
+    - Ensure the database exists
+    
+    **Authentication failed**:
+    - Verify username and password
+    - Check PostgreSQL user permissions
+    
+    **SSL/TLS errors**:
+    - For local databases, remove SSL requirements
+    - For managed databases, ensure SSL is enabled in the connection string
+  </Accordion>
+  
+  <Accordion title="Port conflicts">
+    If ports 3000 or 4000 are in use:
+    
+    **Find the process**:
+    ```bash
+    lsof -i :3000
+    lsof -i :4000
+    ```
+    
+    **Change the ports**:
+    - Frontend: Modify `web/next/package.json` dev script to use `next dev -p 3001`
+    - Backend: Add `HONO_PORT=4001` to `.env`
+  </Accordion>
+  
+  <Accordion title="Module resolution errors">
+    If you see "Cannot find module" errors:
+    
+    ```bash
+    # Clean everything
+    bun run clean
+    
+    # Reinstall dependencies
+    bun install
+    
+    # Build shared packages
+    bun run build --filter='@packages/*'
+    ```
+  </Accordion>
+  
+  <Accordion title="Turborepo cache issues">
+    Clear Turborepo cache:
+    
+    ```bash
+    # Remove cache directories
+    rm -rf .turbo
+    rm -rf node_modules/.cache
+    
+    # Rebuild
+    bun run build
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    Understand the tech stack and design decisions.
+  </Card>
+  
+  <Card title="Project Structure" icon="folder" href="/project-structure">
+    Learn how the monorepo is organized.
+  </Card>
+  
+  <Card title="Type-Safe API" icon="shield-check" href="/type-safe-api">
+    Master Hono RPC for end-to-end type safety.
+  </Card>
+  
+  <Card title="Deployment" icon="rocket" href="/deployment/vercel">
+    Deploy to production on Vercel or other platforms.
+  </Card>
+</CardGroup>

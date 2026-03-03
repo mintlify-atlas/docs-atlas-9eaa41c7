@@ -1,0 +1,457 @@
+---
+title: Scripts Reference
+description: Available npm/bun scripts for development, building, and deployment
+---
+
+ZeroStarter includes a comprehensive set of scripts to streamline your development workflow. All scripts are run with `bun run <script>` from the project root.
+
+## Development
+
+### `bun dev`
+
+Start all development servers in parallel using Turborepo's TUI (Terminal UI).
+
+```bash
+bun dev
+```
+
+This starts:
+- **Hono API** on `http://localhost:8787` (hot reload enabled)
+- **Next.js app** on `http://localhost:3000` (fast refresh enabled)
+
+<Note>
+  The TUI shows real-time logs for each workspace and allows you to filter by service.
+</Note>
+
+### Workspace-Specific Dev Scripts
+
+Run dev mode for individual workspaces:
+
+<CodeGroup>
+```bash title="Backend Only"
+bun --filter=@api/hono dev
+```
+
+```bash title="Frontend Only"
+bun --filter=@web/next dev
+```
+</CodeGroup>
+
+## Building
+
+### `bun run build`
+
+Build all packages for production.
+
+```bash
+bun run build
+```
+
+This command:
+- Builds packages in dependency order
+- Caches builds using Turborepo
+- Shows a summary of build results
+
+**Output locations:**
+- `api/hono/dist/` - Compiled Hono API
+- `web/next/.next/` - Next.js production build
+- `packages/*/dist/` - Compiled package bundles
+
+<Accordion>
+  <AccordionItem title="Build Scripts by Workspace">
+    Each workspace has its own build configuration:
+
+    **@api/hono**
+    ```json
+    "build": "tsdown"
+    ```
+    Uses [tsdown](https://tsdown.dev) to bundle TypeScript into optimized ESM.
+
+    **@web/next**
+    ```json
+    "build": "next build"
+    ```
+    Creates an optimized production build with Next.js.
+
+    **@packages/***
+    ```json
+    "build": "tsdown"
+    ```
+    Compiles shared packages with tsdown for use in other workspaces.
+  </AccordionItem>
+</Accordion>
+
+### `bun run check-types`
+
+Run TypeScript type checking across all workspaces without emitting files.
+
+```bash
+bun run check-types
+```
+
+Useful for:
+- CI/CD pipelines
+- Pre-commit hooks
+- Quick validation before building
+
+## Database
+
+### `bun run db:generate`
+
+Generate database migrations from Drizzle schema.
+
+```bash
+bun run db:generate
+```
+
+<Steps>
+  <Step title="Builds @packages/env">
+    Ensures environment variables are available
+  </Step>
+  <Step title="Analyzes schema changes">
+    Compares current schema with database state
+  </Step>
+  <Step title="Generates migration files">
+    Creates SQL migration in `packages/db/drizzle/`
+  </Step>
+</Steps>
+
+### `bun run db:migrate`
+
+Apply pending migrations to the database.
+
+```bash
+bun run db:migrate
+```
+
+<Warning>
+  Always generate migrations in development first, then apply them in production. Never run `db:generate` in production.
+</Warning>
+
+### `bun run db:studio`
+
+Open [Drizzle Studio](https://orm.drizzle.team/drizzle-studio/overview) - a visual database browser.
+
+```bash
+bun run db:studio
+```
+
+Access at: **`https://local.drizzle.studio`**
+
+Features:
+- Browse tables and data
+- Run queries
+- Edit records
+- View relationships
+
+## Production
+
+### `bun run start`
+
+Start all production servers.
+
+```bash
+bun run start
+```
+
+Runs:
+- `bun dist/index.mjs` for Hono API
+- `next start` for Next.js
+
+<Note>
+  Must run `bun run build` first to create production bundles.
+</Note>
+
+## Code Quality
+
+### `bun run format`
+
+Format all code with [Oxfmt](https://oxc.rs/docs/guide/usage/formatter).
+
+```bash
+bun run format
+```
+
+Formats:
+- TypeScript/JavaScript files
+- JSON files
+- MDX/Markdown (in content directories)
+
+### `bun run format:check`
+
+Check formatting without making changes.
+
+```bash
+bun run format:check
+```
+
+Exits with error if files need formatting. Perfect for CI.
+
+### `bun run lint`
+
+Lint all workspaces using [Oxlint](https://oxc.rs/docs/guide/usage/linter).
+
+```bash
+bun run lint
+```
+
+Checks for:
+- Code quality issues
+- Potential bugs
+- Best practice violations
+
+## Maintenance
+
+### `bun run clean`
+
+Remove all build artifacts and dependencies.
+
+```bash
+bun run clean
+```
+
+Deletes:
+- `.next/` directories
+- `.turbo/` cache
+- `dist/` build outputs
+- `node_modules/` across all workspaces
+- Empty directories
+
+<Warning>
+  This is destructive! Run `bun install` after cleaning to restore dependencies.
+</Warning>
+
+### `bun run shadcn:update`
+
+Update all Shadcn UI components to their latest versions.
+
+```bash
+bun run shadcn:update
+```
+
+This script:
+- Fetches latest component versions
+- Updates components in `web/next/src/components/ui`
+- Preserves your customizations when possible
+
+## Git Hooks
+
+### `bun run prepare`
+
+Install [Lefthook](https://github.com/evilmartians/lefthook) git hooks.
+
+```bash
+bun run prepare
+```
+
+Runs automatically after `bun install`.
+
+**Configured hooks:**
+- **Pre-commit:** Runs `lint-staged` for formatting and linting
+- **Commit-msg:** Validates commit messages with `commitlint`
+
+<Note>
+  See `.lefthook.yml` for hook configuration.
+</Note>
+
+## DevTools
+
+### `bun run devtools`
+
+Open Turborepo DevTools for monitoring builds and cache.
+
+```bash
+bun run devtools
+```
+
+Provides:
+- Build visualization
+- Cache hit rates
+- Dependency graph
+- Performance metrics
+
+## Workspace Scripts
+
+Run scripts in specific workspaces using Turbo's `--filter` flag:
+
+<CodeGroup>
+```bash title="Single Workspace"
+# Run in api/hono only
+bun --filter=@api/hono dev
+```
+
+```bash title="Multiple Workspaces"
+# Run in all api/* workspaces
+bun --filter='@api/*' build
+```
+
+```bash title="Workspace and Dependencies"
+# Build a workspace and its dependencies
+bun --filter=@web/next... build
+```
+</CodeGroup>
+
+## Custom Script Examples
+
+Add these to your root `package.json` for common workflows:
+
+```json title="package.json"
+{
+  "scripts": {
+    // Reset database and seed
+    "db:reset": "bun run db:migrate && bun --filter=@api/hono seed",
+    
+    // Production build check
+    "build:check": "bun run check-types && bun run lint && bun run build",
+    
+    // Install and setup from scratch
+    "setup": "bun install && bun run db:generate && bun run db:migrate"
+  }
+}
+```
+
+## CI/CD Scripts
+
+Recommended script order for continuous integration:
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    bun install --frozen-lockfile
+    ```
+  </Step>
+
+  <Step title="Type checking">
+    ```bash
+    bun run check-types
+    ```
+  </Step>
+
+  <Step title="Linting">
+    ```bash
+    bun run lint
+    ```
+  </Step>
+
+  <Step title="Format checking">
+    ```bash
+    bun run format:check
+    ```
+  </Step>
+
+  <Step title="Build">
+    ```bash
+    bun run build
+    ```
+  </Step>
+
+  <Step title="Test (if applicable)">
+    ```bash
+    bun test
+    ```
+  </Step>
+</Steps>
+
+## Script Options
+
+Common Turborepo options that work with any script:
+
+```bash
+# Run with verbose output
+bun run build --verbose
+
+# Force rebuild (ignore cache)
+bun run build --force
+
+# Run in parallel (default)
+bun run test --parallel
+
+# Run in sequence
+bun run build --concurrency=1
+
+# Show summary after execution
+bun run build --summarize
+```
+
+## Environment Variables
+
+Some scripts require environment variables. Ensure your `.env` file is configured:
+
+```bash title=".env"
+# Database (required for db:* scripts)
+DATABASE_URL="postgresql://user:password@localhost:5432/db"
+
+# API URL (required for web/next)
+NEXT_PUBLIC_API_URL="http://localhost:8787"
+API_INTERNAL_URL="http://localhost:8787"
+
+# Hono configuration
+HONO_PORT=8787
+HONO_TRUSTED_ORIGINS="http://localhost:3000"
+```
+
+## Troubleshooting
+
+<Accordion>
+  <AccordionItem title="Script fails with 'workspace not found'">
+    Make sure you're running from the project root, not a workspace directory.
+
+    ```bash
+    # Wrong
+    cd api/hono
+    bun run build
+
+    # Correct
+    cd ~/workspace/source
+    bun run build
+    ```
+  </AccordionItem>
+
+  <AccordionItem title="Database scripts fail">
+    Ensure `DATABASE_URL` is set in your `.env` file and the database is running.
+
+    ```bash
+    # Check if database is accessible
+    psql $DATABASE_URL -c "SELECT 1;"
+    ```
+  </AccordionItem>
+
+  <AccordionItem title="Build cache issues">
+    Clear Turborepo cache and rebuild:
+
+    ```bash
+    rm -rf .turbo
+    bun run build --force
+    ```
+  </AccordionItem>
+
+  <AccordionItem title="Port already in use">
+    Change ports in environment variables:
+
+    ```bash title=".env"
+    HONO_PORT=8788  # Changed from 8787
+    ```
+
+    Or kill the process using the port:
+    ```bash
+    lsof -ti:8787 | xargs kill -9
+    ```
+  </AccordionItem>
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Project Structure" href="/core/project-structure" icon="folder-tree">
+    Understand the monorepo organization
+  </Card>
+  <Card title="Environment Variables" href="/guides/environment-variables" icon="key">
+    Configure your environment
+  </Card>
+  <Card title="Deployment" href="/deployment/vercel" icon="rocket">
+    Deploy to production
+  </Card>
+  <Card title="Turborepo Docs" href="https://turbo.build/repo/docs" icon="book">
+    Learn more about Turborepo
+  </Card>
+</CardGroup>

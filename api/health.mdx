@@ -1,0 +1,237 @@
+---
+title: 'Health Check'
+description: 'System health and status monitoring endpoint'
+---
+
+## Overview
+
+The health endpoint provides system status information, including the current environment and build version. This endpoint is useful for monitoring, load balancers, and deployment verification.
+
+## Endpoint
+
+```
+GET /api/health
+```
+
+<ParamField path="Authentication" type="none">
+  This endpoint does not require authentication
+</ParamField>
+
+## Request
+
+### Using Hono RPC Client
+
+```typescript
+import { apiClient } from "@/lib/api/client"
+
+const response = await apiClient.health.$get()
+const { data } = await response.json()
+
+console.log(data)
+// {
+//   message: "ok",
+//   version: "1.0.0",
+//   environment: "production"
+// }
+```
+
+### Using Fetch
+
+```typescript
+const response = await fetch('https://your-domain.com/api/health', {
+  method: 'GET',
+})
+
+const { data } = await response.json()
+```
+
+### Using cURL
+
+```bash
+curl https://your-domain.com/api/health
+```
+
+## Response
+
+### Success Response (200 OK)
+
+<ResponseField name="data" type="object" required>
+  The health check data object
+
+  <Expandable title="properties">
+    <ResponseField name="message" type="string" required>
+      Status message, always returns `"ok"` when the service is healthy
+      
+      **Example:** `"ok"`
+    </ResponseField>
+
+    <ResponseField name="version" type="string" required>
+      Current build version from `BUILD_VERSION` environment variable
+      
+      **Example:** `"1.0.0"`
+    </ResponseField>
+
+    <ResponseField name="environment" type="string" required>
+      Current deployment environment
+      
+      **Possible values:** `"local"`, `"development"`, `"test"`, `"staging"`, `"production"`
+      
+      **Example:** `"production"`
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Schema
+
+```typescript
+interface HealthResponse {
+  data: {
+    message: string
+    version: string
+    environment: "local" | "development" | "test" | "staging" | "production"
+  }
+}
+```
+
+### Example Response
+
+```json
+{
+  "data": {
+    "message": "ok",
+    "version": "1.0.0",
+    "environment": "production"
+  }
+}
+```
+
+## Implementation
+
+The health endpoint is defined in `api/hono/src/index.ts`:
+
+```typescript api/hono/src/index.ts
+.get(
+  "/health",
+  describeRoute({
+    tags: ["System"],
+    description: "Get the system health",
+    responses: {
+      200: {
+        description: "OK",
+        content: {
+          "application/json": {
+            schema: resolver(
+              z.object({
+                data: z.object({
+                  environment: z
+                    .enum(["local", "development", "test", "staging", "production"])
+                    .meta({ example: env.NODE_ENV }),
+                  message: z.string().meta({ example: "ok" }),
+                  version: z.string().meta({ example: BUILD_VERSION }),
+                }),
+              }),
+            ),
+          },
+        },
+      },
+    },
+  }),
+  (c) => {
+    const data = { message: "ok", version: BUILD_VERSION, environment: env.NODE_ENV }
+    return c.json({ data })
+  },
+)
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Health Monitoring" icon="heart-pulse">
+    Use this endpoint for uptime monitoring services like UptimeRobot or Pingdom
+  </Card>
+  <Card title="Load Balancer Checks" icon="scale-balanced">
+    Configure load balancers to verify instance health before routing traffic
+  </Card>
+  <Card title="Deployment Verification" icon="circle-check">
+    Verify successful deployments by checking the version number
+  </Card>
+  <Card title="Environment Validation" icon="server">
+    Confirm the correct environment is running in each deployment
+  </Card>
+</CardGroup>
+
+## Monitoring Example
+
+You can use the health endpoint in a monitoring script:
+
+```typescript
+async function checkHealth() {
+  try {
+    const response = await fetch('https://your-domain.com/api/health')
+    
+    if (!response.ok) {
+      throw new Error(`Health check failed with status: ${response.status}`)
+    }
+    
+    const { data } = await response.json()
+    
+    console.log('Service is healthy')
+    console.log(`Version: ${data.version}`)
+    console.log(`Environment: ${data.environment}`)
+    
+    return true
+  } catch (error) {
+    console.error('Health check failed:', error)
+    return false
+  }
+}
+
+// Run health check every 30 seconds
+setInterval(checkHealth, 30000)
+```
+
+## Docker Health Check
+
+You can use this endpoint in your Docker health check:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3001/api/health || exit 1
+```
+
+## Kubernetes Liveness Probe
+
+Configure Kubernetes to use this endpoint for liveness probes:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: 3001
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+```
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Root Endpoint" icon="house">
+    `GET /` - Returns version and environment without the `/api` prefix
+  </Card>
+  <Card title="OpenAPI Docs" icon="book" href="/api/overview">
+    `GET /api/docs` - Interactive API documentation
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="book" href="/api/overview">
+    Learn about the full API structure
+  </Card>
+  <Card title="Authentication" icon="shield-check" href="/api/authentication">
+    Explore authentication endpoints
+  </Card>
+</CardGroup>

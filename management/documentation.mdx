@@ -1,0 +1,233 @@
+---
+title: Documentation
+description: Manage documentation content.
+---
+
+## Overview
+
+Documentation is managed using Fumadocs and stored in `web/next/content/docs/`.
+
+## Content Structure
+
+- **Location**: `web/next/content/docs/`
+- **Format**: MDX files with frontmatter
+- **Configuration**: Defined in `web/next/source.config.ts`
+- **Navigation**: Managed in `web/next/content/docs/meta.json`
+
+## Creating Documentation
+
+<Steps>
+
+### Create MDX file
+
+Create a new `.mdx` file in the appropriate subdirectory:
+
+```mdx web/next/content/docs/getting-started/new-page.mdx
+---
+title: New Page
+description: A brief description of this page.
+---
+
+## Introduction
+
+Your documentation content goes here...
+```
+
+### Add frontmatter
+
+Include `title` and `description` in the frontmatter:
+
+- **`title`**: The page title (required)
+- **`description`**: A brief summary (required)
+
+### Write content
+
+Write your content using MDX syntax. You can use:
+
+- Markdown formatting
+- React components
+- Code blocks with syntax highlighting
+- Images and media
+- Fumadocs components (Steps, Accordion, Note, Warning)
+
+### Add to navigation
+
+Add an entry to `web/next/content/docs/meta.json`:
+
+```json web/next/content/docs/meta.json
+{
+  "pages": [
+    "index",
+    "getting-started/architecture",
+    "getting-started/new-page",
+    "manage/analytics"
+  ]
+}
+```
+
+<Note>
+The sequence matters - it determines the order pages appear in navigation.
+</Note>
+
+</Steps>
+
+## Configuration
+
+Documentation source is configured in `web/next/source.config.ts`:
+
+```ts web/next/source.config.ts
+import { defineConfig, defineDocs } from "fumadocs-mdx/config"
+
+export const docs = defineDocs({
+  dir: "content/docs",
+  docs: {
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+})
+
+export default defineConfig()
+```
+
+### Key Configuration Options
+
+- **`dir`**: Directory containing documentation (`content/docs`)
+- **`includeProcessedMarkdown`**: Enables processed markdown for llms.txt endpoint
+
+## Navigation Structure
+
+Pages are listed in `web/next/content/docs/meta.json`:
+
+```json web/next/content/docs/meta.json
+{
+  "pages": [
+    "index",
+    "getting-started/architecture",
+    "getting-started/project-structure",
+    "getting-started/type-safe-api",
+    "getting-started/installation",
+    "getting-started/scripts",
+    "getting-started/roadmap",
+    "manage/analytics",
+    "manage/blog",
+    "manage/code-quality",
+    "manage/documentation",
+    "manage/feedback",
+    "manage/environment",
+    "manage/release",
+    "manage/llms-txt",
+    "manage/robots",
+    "manage/sitemap",
+    "deployment/docker",
+    "deployment/vercel",
+    "resources/ai-skills",
+    "resources/ide-setup",
+    "resources/infisical",
+    "contributing"
+  ]
+}
+```
+
+<Warning>
+The sequence matters! Pages appear in the navigation in the order specified in this array.
+</Warning>
+
+## Directory Organization
+
+Organize documentation into logical groups:
+
+```
+content/docs/
+├── index.mdx
+├── getting-started/
+│   ├── architecture.mdx
+│   ├── installation.mdx
+│   └── scripts.mdx
+├── manage/
+│   ├── analytics.mdx
+│   ├── blog.mdx
+│   └── environment.mdx
+├── deployment/
+│   ├── docker.mdx
+│   └── vercel.mdx
+└── resources/
+    ├── ai-skills.mdx
+    └── ide-setup.mdx
+```
+
+## MDX Features
+
+### Code Blocks
+
+```tsx
+import { useState } from "react"
+
+export function Example() {
+  const [value, setValue] = useState("")
+  return <input value={value} onChange={(e) => setValue(e.target.value)} />
+}
+```
+
+### Fumadocs Components
+
+```mdx
+<Steps>
+
+### Step 1
+
+First step content...
+
+### Step 2
+
+Second step content...
+
+</Steps>
+
+<Note>
+This is an informational note.
+</Note>
+
+<Warning>
+This is a warning message.
+</Warning>
+
+<Accordion title="Click to expand">
+Hidden content goes here...
+</Accordion>
+```
+
+### Images
+
+```mdx
+![Alt text](https://example.com/image.png)
+```
+
+### Links
+
+```mdx
+[Internal link](/installation)
+[External link](https://example.com)
+```
+
+## Best Practices
+
+1. **Use descriptive file names**: `installation.mdx` instead of `page1.mdx`
+2. **Write clear descriptions**: Help readers understand the page content
+3. **Organize by topic**: Group related pages in subdirectories
+4. **Update meta.json**: Always add new pages to the navigation
+5. **Use code blocks**: Include syntax highlighting for code examples
+6. **Add components**: Use Steps, Note, Warning for better UX
+7. **Keep URLs clean**: File names become URL slugs
+
+## Accessing Documentation
+
+Documentation pages are accessible at:
+
+- **Web UI**: `/docs/category/page-name`
+- **AI-friendly**: `/docs/category/page-name.md` (markdown format for LLMs)
+- **Index**: `/llms.txt` (list of all documentation pages)
+
+## LLMs.txt Integration
+
+All documentation is automatically exposed via the llms.txt endpoint for AI assistants. See the [llms.txt documentation](/management/llms-txt) for details.

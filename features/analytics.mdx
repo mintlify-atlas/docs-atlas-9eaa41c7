@@ -1,0 +1,430 @@
+---
+title: Analytics
+description: PostHog integration for product analytics, event tracking, session replay, and feature flags
+---
+
+ZeroStarter integrates [PostHog](https://posthog.com) for comprehensive product analytics, giving you insights into user behavior, feature usage, and application performance.
+
+## Setup
+
+PostHog is pre-configured and ready to use. Simply add your PostHog project credentials to enable analytics.
+
+<Steps>
+
+### Create PostHog project
+
+1. Sign up at [posthog.com](https://posthog.com) or self-host PostHog
+2. Create a new project
+3. Copy your Project API Key from Project Settings
+
+### Configure environment variables
+
+Add your PostHog credentials to `.env`:
+
+```bash .env
+# Optional: PostHog Analytics (https://zerostarter.dev/docs/features/analytics)
+NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+NEXT_PUBLIC_POSTHOG_KEY=phc_your_project_api_key
+```
+
+<Note>
+  PostHog offers multiple hosting regions. Use `https://us.i.posthog.com` for US hosting or `https://eu.i.posthog.com` for EU hosting.
+</Note>
+
+### Start tracking
+
+Once configured, PostHog automatically tracks:
+- Page views
+- User sessions
+- Custom events (when you add them)
+- Feature flag evaluations
+
+</Steps>
+
+## Architecture
+
+PostHog is initialized at the application root and provided via React Context.
+
+```typescript app/providers.tsx
+"use client"
+
+import { isProduction } from "@packages/env"
+import { env } from "@packages/env/web-next"
+import { PostHogProvider } from "@posthog/react"
+import posthog from "posthog-js"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { ThemeProvider as NextThemesProvider } from "next-themes"
+import { useState } from "react"
+
+export function OuterProvider({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient())
+
+  return (
+    <PostHogProvider client={posthog}>
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    </PostHogProvider>
+  )
+}
+```
+
+<Info>
+  PostHog is wrapped in the `OuterProvider` to ensure it's available throughout your application, including in Server Components via Client Components.
+</Info>
+
+## Event Tracking
+
+Track custom events to understand how users interact with your application.
+
+### Client Components
+
+Use the `usePostHog` hook in Client Components:
+
+```typescript app/components/signup-button.tsx
+"use client"
+
+import { usePostHog } from "@posthog/react"
+import { Button } from "@/components/ui/button"
+
+export function SignupButton() {
+  const posthog = usePostHog()
+
+  const handleSignup = () => {
+    posthog.capture("signup_clicked", {
+      source: "homepage",
+      plan: "free",
+    })
+    // ... signup logic
+  }
+
+  return <Button onClick={handleSignup}>Sign Up</Button>
+}
+```
+
+### Track user properties
+
+Identify users and set properties:
+
+```typescript
+import { usePostHog } from "@posthog/react"
+import { useEffect } from "react"
+
+export function UserTracker({ user }: { user: User }) {
+  const posthog = usePostHog()
+
+  useEffect(() => {
+    if (user) {
+      posthog.identify(user.id, {
+        email: user.email,
+        name: user.name,
+        created_at: user.createdAt,
+      })
+    }
+  }, [user, posthog])
+
+  return null
+}
+```
+
+### Common events to track
+
+<CodeGroup>
+
+```typescript Conversion Events
+// User signs up
+posthog.capture("user_signed_up", {
+  provider: "github",
+  referrer: document.referrer,
+})
+
+// User upgrades plan
+posthog.capture("plan_upgraded", {
+  from_plan: "free",
+  to_plan: "pro",
+  billing_cycle: "monthly",
+})
+
+// User completes onboarding
+posthog.capture("onboarding_completed", {
+  steps_completed: 5,
+  time_taken_seconds: 180,
+})
+```
+
+```typescript Engagement Events
+// User creates resource
+posthog.capture("project_created", {
+  project_type: "web",
+  template: "nextjs",
+})
+
+// User invites team member
+posthog.capture("team_member_invited", {
+  organization_size: 5,
+  role: "member",
+})
+
+// User exports data
+posthog.capture("data_exported", {
+  format: "csv",
+  record_count: 1500,
+})
+```
+
+```typescript Feature Usage
+// User toggles feature
+posthog.capture("feature_toggled", {
+  feature: "dark_mode",
+  enabled: true,
+})
+
+// User uses search
+posthog.capture("search_performed", {
+  query_length: 12,
+  results_count: 8,
+  source: "navbar",
+})
+
+// User shares content
+posthog.capture("content_shared", {
+  content_type: "project",
+  platform: "twitter",
+})
+```
+
+</CodeGroup>
+
+## Feature Flags
+
+Feature flags allow you to control feature rollouts, run A/B tests, and toggle features without deploying code.
+
+### Create a feature flag
+
+<Steps>
+
+### In PostHog Dashboard
+
+1. Go to Feature Flags in your PostHog project
+2. Click "New feature flag"
+3. Set the flag key (e.g., `new-dashboard`)
+4. Configure rollout percentage or user targeting
+5. Save the flag
+
+### Use in your application
+
+Check feature flags in Client Components:
+
+```typescript app/dashboard/page.tsx
+"use client"
+
+import { useFeatureFlagEnabled } from "@posthog/react"
+import { NewDashboard } from "@/components/new-dashboard"
+import { OldDashboard } from "@/components/old-dashboard"
+
+export default function DashboardPage() {
+  const isNewDashboard = useFeatureFlagEnabled("new-dashboard")
+
+  if (isNewDashboard) {
+    return <NewDashboard />
+  }
+
+  return <OldDashboard />
+}
+```
+
+### Variant flags
+
+Use multi-variant flags for A/B testing:
+
+```typescript
+import { useFeatureFlagVariantKey } from "@posthog/react"
+
+export function PricingPage() {
+  const pricingVariant = useFeatureFlagVariantKey("pricing-test")
+
+  return (
+    <div>
+      {pricingVariant === "control" && <PricingControl />}
+      {pricingVariant === "test-a" && <PricingTestA />}
+      {pricingVariant === "test-b" && <PricingTestB />}
+    </div>
+  )
+}
+```
+
+</Steps>
+
+## Session Replay
+
+PostHog automatically records user sessions, allowing you to replay user interactions and debug issues.
+
+<Note>
+  Session replay is enabled by default in PostHog. You can configure privacy settings like masking sensitive inputs in your PostHog project settings.
+</Note>
+
+### Configure privacy
+
+Mask sensitive data:
+
+```typescript
+// In PostHog dashboard, or via code:
+posthog.init("your_api_key", {
+  session_recording: {
+    maskAllInputs: true,
+    maskTextSelector: ".sensitive",
+  },
+})
+```
+
+### View replays
+
+1. Go to Session Replay in PostHog
+2. Filter by user, date, or custom events
+3. Watch session recordings with console logs and network activity
+4. Debug issues by seeing exactly what users experienced
+
+## Analytics in Production
+
+<Warning>
+  Analytics are only tracked when `NEXT_PUBLIC_POSTHOG_KEY` is set. Leave it empty in development to avoid polluting your analytics data.
+</Warning>
+
+### Environment-specific tracking
+
+Track different environments separately:
+
+```bash .env.production
+NEXT_PUBLIC_POSTHOG_KEY=phc_production_key
+```
+
+```bash .env.staging
+NEXT_PUBLIC_POSTHOG_KEY=phc_staging_key
+```
+
+### Opt-out support
+
+Respect user privacy preferences:
+
+```typescript
+import { usePostHog } from "@posthog/react"
+
+export function CookieConsent() {
+  const posthog = usePostHog()
+
+  const handleOptOut = () => {
+    posthog.opt_out_capturing()
+    // or
+    posthog.opt_in_capturing() // to opt back in
+  }
+
+  return (
+    <div>
+      <button onClick={handleOptOut}>Opt out of analytics</button>
+    </div>
+  )
+}
+```
+
+## Performance Monitoring
+
+Track application performance metrics:
+
+```typescript
+import { usePostHog } from "@posthog/react"
+import { useEffect } from "react"
+
+export function PerformanceTracker() {
+  const posthog = usePostHog()
+
+  useEffect(() => {
+    // Track page load time
+    if (window.performance) {
+      const loadTime = window.performance.timing.loadEventEnd - 
+                       window.performance.timing.navigationStart
+      
+      posthog.capture("page_load_time", {
+        load_time_ms: loadTime,
+        page: window.location.pathname,
+      })
+    }
+  }, [posthog])
+
+  return null
+}
+```
+
+## DevTools
+
+PostHog is integrated with the development tools panel (only shown in development):
+
+```typescript app/providers.tsx
+import { DevTools } from "@/components/devtools"
+import { isProduction } from "@packages/env"
+import { env } from "@packages/env/web-next"
+
+export function OuterProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <PostHogProvider client={posthog}>
+      <QueryClientProvider client={queryClient}>
+        {children}
+        {!isProduction(env.NEXT_PUBLIC_NODE_ENV) && <DevTools />}
+      </QueryClientProvider>
+    </PostHogProvider>
+  )
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use descriptive event names">
+    Use clear, consistent naming conventions:
+    - ✅ `user_signed_up`, `project_created`, `plan_upgraded`
+    - ❌ `click`, `event1`, `action`
+  </Accordion>
+  
+  <Accordion title="Include context in properties">
+    Add relevant properties to understand the event:
+    ```typescript
+    posthog.capture("feature_used", {
+      feature_name: "export",
+      export_format: "csv",
+      record_count: 100,
+      user_plan: "pro",
+    })
+    ```
+  </Accordion>
+  
+  <Accordion title="Track both success and failure">
+    Track errors to understand where users struggle:
+    ```typescript
+    try {
+      await createProject()
+      posthog.capture("project_created")
+    } catch (error) {
+      posthog.capture("project_creation_failed", {
+        error_message: error.message,
+      })
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Respect user privacy">
+    - Never track PII (passwords, credit cards, SSNs) in events
+    - Use PostHog's masking features for sensitive data
+    - Implement opt-out functionality
+    - Be transparent about what you track
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="PostHog Docs" icon="book" href="https://posthog.com/docs">
+    Learn about PostHog's features and integrations
+  </Card>
+  <Card title="UI Components" icon="palette" href="/features/ui-components">
+    Build beautiful interfaces to track user interactions
+  </Card>
+</CardGroup>

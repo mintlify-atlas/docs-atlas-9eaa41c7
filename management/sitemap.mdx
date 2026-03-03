@@ -1,0 +1,164 @@
+---
+title: Sitemap
+description: Auto-generated sitemap for search engines.
+---
+
+## Overview
+
+The sitemap is automatically generated and provides structured URLs for search engines. It's accessible at `/sitemap.xml` and includes all documentation pages, blog posts, and static routes.
+
+## How It Works
+
+The sitemap automatically includes:
+
+- Static routes (home page)
+- All documentation pages from `docsSource`
+- All blog posts from `blogSource`
+- Proper priorities and change frequencies
+- Alphabetically sorted URLs
+
+## Access Points
+
+The sitemap is available at:
+
+- `/sitemap.xml` - Complete sitemap in XML format
+
+## Implementation
+
+The sitemap is implemented in `web/next/src/app/sitemap.ts`:
+
+```ts web/next/src/app/sitemap.ts
+import { MetadataRoute } from "next"
+import { config } from "@/lib/config"
+import { blogSource, docsSource } from "@/lib/source"
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = config.app.url
+
+  const staticRoutes: MetadataRoute.Sitemap = [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 1,
+    },
+  ]
+
+  // Docs pages
+  const docsPages = docsSource.getPages()
+  const docsRoutes: MetadataRoute.Sitemap = docsPages.map((page) => ({
+    url: `${baseUrl}${page.url}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.9,
+  }))
+
+  // Blog pages
+  const blogPages = blogSource.getPages().filter((p) => p.url !== "/blog")
+  const blogRoutes: MetadataRoute.Sitemap = blogPages.map((page) => ({
+    url: `${baseUrl}${page.url}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.9,
+  }))
+
+  // Combine all pages and sort
+  const allPages = [...staticRoutes, ...docsRoutes, ...blogRoutes]
+  return allPages.sort((a, b) => a.url.localeCompare(b.url))
+}
+```
+
+## Structure
+
+The sitemap includes:
+
+<Accordion title="Static Routes">
+
+- **Home page**: priority 1.0, weekly updates
+
+</Accordion>
+
+<Accordion title="Documentation Pages">
+
+- All pages from `docsSource`
+- Priority: 0.9
+- Change frequency: weekly
+
+</Accordion>
+
+<Accordion title="Blog Posts">
+
+- All posts from `blogSource` (excluding blog index)
+- Priority: 0.9
+- Change frequency: monthly
+
+</Accordion>
+
+## Configuration
+
+### Priorities
+
+| Page Type      | Priority | Change Frequency |
+| -------------- | -------- | ---------------- |
+| Home page      | 1.0      | Weekly           |
+| Documentation  | 0.9      | Weekly           |
+| Blog posts     | 0.9      | Monthly          |
+
+### Customization
+
+To customize the sitemap:
+
+1. Edit `web/next/src/app/sitemap.ts`
+2. Modify priorities and change frequencies
+3. Add or remove routes as needed
+4. Adjust sorting logic if required
+
+## Features
+
+- Automatic page discovery from Fumadocs sources
+- Configurable priorities and change frequencies
+- Alphabetically sorted URLs for consistency
+- Next.js `MetadataRoute.Sitemap` type for type safety
+- Automatic updates when content changes
+
+## SEO Benefits
+
+1. **Faster Indexing**: Search engines discover new pages quickly
+2. **Better Crawling**: Clear structure helps search engines understand your site
+3. **Priority Signals**: Indicate which pages are most important
+4. **Change Frequency**: Help search engines schedule re-crawling
+
+<Note>
+The sitemap is automatically generated and doesn't require manual updates when you add new pages.
+</Note>
+
+## Verification
+
+Verify your sitemap:
+
+1. Visit `/sitemap.xml` on your site
+2. Check that all expected pages are listed
+3. Verify URLs are correctly formatted
+4. Submit to Google Search Console
+
+## Troubleshooting
+
+<Accordion title="Missing pages">
+
+If pages are missing from the sitemap:
+
+1. Check that pages are properly defined in Fumadocs sources
+2. Verify the page is not filtered out (like the blog index)
+3. Ensure the page has valid frontmatter
+
+</Accordion>
+
+<Accordion title="Incorrect URLs">
+
+If URLs are incorrect:
+
+1. Check `config.app.url` is set correctly
+2. Verify page URLs in Fumadocs sources
+3. Check for trailing slashes or missing prefixes
+
+</Accordion>

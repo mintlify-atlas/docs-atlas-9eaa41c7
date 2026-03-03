@@ -1,0 +1,419 @@
+---
+title: 'User API'
+description: 'Retrieve current authenticated user information'
+---
+
+## Overview
+
+The user endpoint returns detailed information about the currently authenticated user, including their profile data, email verification status, and account metadata.
+
+## Endpoint
+
+```
+GET /api/v1/user
+```
+
+<ParamField path="Authentication" type="required">
+  This endpoint requires authentication via session cookie
+</ParamField>
+
+## Request
+
+### Using Hono RPC Client
+
+```typescript
+import { apiClient } from "@/lib/api/client"
+
+const response = await apiClient.v1.user.$get()
+const { data } = await response.json()
+
+console.log(data)
+// {
+//   id: "iO8PZYiiwR6e0o9XDtqyAmUemv1Pc8tc",
+//   email: "user@example.com",
+//   name: "John Doe",
+//   emailVerified: true,
+//   ...
+// }
+```
+
+### Using Fetch
+
+```typescript
+const response = await fetch('https://your-domain.com/api/v1/user', {
+  method: 'GET',
+  credentials: 'include', // Required for cookie-based auth
+})
+
+if (!response.ok) {
+  throw new Error('Authentication required')
+}
+
+const { data } = await response.json()
+```
+
+### Using cURL
+
+```bash
+curl https://your-domain.com/api/v1/user \
+  -H "Cookie: session_token=your_session_token" \
+  -X GET
+```
+
+## Response
+
+### Success Response (200 OK)
+
+<ResponseField name="data" type="object" required>
+  The user object
+
+  <Expandable title="properties">
+    <ResponseField name="id" type="string" required>
+      Unique user identifier
+      
+      **Example:** `"iO8PZYiiwR6e0o9XDtqyAmUemv1Pc8tc"`
+    </ResponseField>
+
+    <ResponseField name="email" type="string" required>
+      User's email address
+      
+      **Example:** `"user@example.com"`
+    </ResponseField>
+
+    <ResponseField name="name" type="string" required>
+      User's display name
+      
+      **Example:** `"John Doe"`
+    </ResponseField>
+
+    <ResponseField name="emailVerified" type="boolean" required>
+      Whether the user's email address has been verified
+      
+      **Example:** `true`
+    </ResponseField>
+
+    <ResponseField name="image" type="string | null" required>
+      URL to the user's profile image (null if not set)
+      
+      **Example:** `"https://example.com/avatar.png"`
+    </ResponseField>
+
+    <ResponseField name="createdAt" type="string" required>
+      ISO 8601 timestamp when the user account was created
+      
+      **Format:** `date-time`
+      
+      **Example:** `"2025-12-17T14:33:40.317Z"`
+    </ResponseField>
+
+    <ResponseField name="updatedAt" type="string" required>
+      ISO 8601 timestamp when the user account was last updated
+      
+      **Format:** `date-time`
+      
+      **Example:** `"2025-12-17T14:33:40.317Z"`
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Schema
+
+```typescript
+interface UserResponse {
+  data: {
+    id: string
+    email: string
+    name: string
+    emailVerified: boolean
+    image: string | null
+    createdAt: string // ISO 8601 date-time
+    updatedAt: string // ISO 8601 date-time
+  }
+}
+```
+
+### Example Response
+
+```json
+{
+  "data": {
+    "id": "iO8PZYiiwR6e0o9XDtqyAmUemv1Pc8tc",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "emailVerified": true,
+    "image": "https://avatars.githubusercontent.com/u/12345678",
+    "createdAt": "2025-12-17T14:33:40.317Z",
+    "updatedAt": "2025-12-17T14:33:40.317Z"
+  }
+}
+```
+
+### Error Response (401 Unauthorized)
+
+Returned when the session is invalid, expired, or missing:
+
+```json
+{
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
+}
+```
+
+## Implementation
+
+The user endpoint is defined in `api/hono/src/routers/v1.ts`:
+
+```typescript api/hono/src/routers/v1.ts
+const userSchema = z.object({
+  createdAt: z.string().meta({ format: "date-time", example: "2025-12-17T14:33:40.317Z" }),
+  email: z.string().meta({ example: "user@example.com" }),
+  emailVerified: z.boolean().meta({ example: true }),
+  id: z.string().meta({ example: "iO8PZYiiwR6e0o9XDtqyAmUemv1Pc8tc" }),
+  image: z.string().nullable().meta({ example: "https://example.com/avatar.png" }),
+  name: z.string().meta({ example: "John Doe" }),
+  updatedAt: z.string().meta({ format: "date-time", example: "2025-12-17T14:33:40.317Z" }),
+})
+
+export const v1Router = new Hono<{
+  Variables: Session
+}>()
+  .use("/*", authMiddleware)
+  .get(
+    "/user",
+    describeRoute({
+      tags: ["v1"],
+      description: "Get current user only",
+      responses: {
+        200: {
+          description: "OK",
+          content: {
+            "application/json": {
+              schema: resolver(z.object({ data: userSchema })),
+            },
+          },
+        },
+      },
+    }),
+    (c) => {
+      const data = c.get("user")
+      return c.json({ data })
+    },
+  )
+```
+
+## Authentication Middleware
+
+The `authMiddleware` validates the session and injects the user into the request context:
+
+1. Extracts the session token from the HTTP-only cookie
+2. Validates the session with Better Auth
+3. Retrieves the user from the database
+4. Injects the user into the Hono context as `c.get("user")`
+5. Returns 401 Unauthorized if validation fails
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="User Profile" icon="user">
+    Display user information in the application header or profile page
+  </Card>
+  <Card title="Personalization" icon="sparkles">
+    Customize the user experience based on user data
+  </Card>
+  <Card title="Email Verification" icon="envelope-circle-check">
+    Check if the user needs to verify their email
+  </Card>
+  <Card title="Avatar Display" icon="image">
+    Show the user's profile image in the UI
+  </Card>
+</CardGroup>
+
+## React Hook Example
+
+Create a custom hook to fetch user data:
+
+```typescript hooks/use-user.ts
+import { apiClient } from "@/lib/api/client"
+import { useQuery } from "@tanstack/react-query"
+
+export function useUser() {
+  return useQuery({
+    queryKey: ["user"],
+    queryFn: async () => {
+      const response = await apiClient.v1.user.$get()
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch user")
+      }
+      
+      const { data } = await response.json()
+      return data
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+```
+
+Usage in a component:
+
+```tsx components/user-profile.tsx
+import { useUser } from "@/hooks/use-user"
+import { Avatar } from "@/components/ui/avatar"
+
+export function UserProfile() {
+  const { data: user, isLoading } = useUser()
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar src={user.image} alt={user.name} />
+      <div>
+        <h3 className="font-semibold">{user.name}</h3>
+        <p className="text-sm text-muted-foreground">{user.email}</p>
+        {!user.emailVerified && (
+          <p className="text-xs text-amber-600">Email not verified</p>
+        )}
+      </div>
+    </div>
+  )
+}
+```
+
+## Server Component Example
+
+In Next.js App Router, fetch user data in a Server Component:
+
+```tsx app/dashboard/page.tsx
+import { apiClient } from "@/lib/api/client"
+import { cookies } from "next/headers"
+
+async function getUser() {
+  const response = await apiClient.v1.user.$get()
+  
+  if (!response.ok) {
+    throw new Error("Authentication required")
+  }
+  
+  const { data } = await response.json()
+  return data
+}
+
+export default async function DashboardPage() {
+  const user = await getUser()
+  
+  return (
+    <div>
+      <h1>Welcome, {user.name}!</h1>
+      <p>Email: {user.email}</p>
+    </div>
+  )
+}
+```
+
+## Email Verification Check
+
+Check if the user needs to verify their email:
+
+```typescript utils/check-email-verified.ts
+import { apiClient } from "@/lib/api/client"
+
+export async function requireEmailVerification() {
+  const response = await apiClient.v1.user.$get()
+  
+  if (!response.ok) {
+    throw new Error("Authentication required")
+  }
+  
+  const { data: user } = await response.json()
+  
+  if (!user.emailVerified) {
+    // Redirect to email verification page
+    window.location.href = "/verify-email"
+    return false
+  }
+  
+  return true
+}
+```
+
+## Type Safety with Hono RPC
+
+The Hono RPC client provides full type safety:
+
+```typescript
+import { apiClient } from "@/lib/api/client"
+
+// TypeScript knows the exact shape of the response
+const response = await apiClient.v1.user.$get()
+const { data } = await response.json()
+
+// Full IntelliSense for user properties
+data.id        // string
+data.email     // string
+data.name      // string
+data.image     // string | null
+data.emailVerified // boolean
+data.createdAt // string
+data.updatedAt // string
+```
+
+## User Type Definition
+
+Extract the user type from the API:
+
+```typescript types/user.ts
+import type { InferResponseType } from "hono/client"
+import type { apiClient } from "@/lib/api/client"
+
+type UserResponse = InferResponseType<typeof apiClient.v1.user.$get>
+export type User = UserResponse["data"]
+```
+
+## Caching Strategy
+
+Recommended caching strategy for user data:
+
+```typescript lib/api/queries.ts
+import { apiClient } from "@/lib/api/client"
+import { queryOptions } from "@tanstack/react-query"
+
+export const userQueryOptions = queryOptions({
+  queryKey: ["user"],
+  queryFn: async () => {
+    const response = await apiClient.v1.user.$get()
+    if (!response.ok) throw new Error("Failed to fetch user")
+    const { data } = await response.json()
+    return data
+  },
+  staleTime: 5 * 60 * 1000, // 5 minutes
+  gcTime: 10 * 60 * 1000, // 10 minutes
+})
+```
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Session API" icon="clock" href="/api/session">
+    Get the current session information
+  </Card>
+  <Card title="Better Auth" icon="shield-check" href="/api/authentication">
+    Learn about authentication endpoints
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Session Endpoint" icon="clock" href="/api/session">
+    Learn how to fetch session data
+  </Card>
+  <Card title="Authentication" icon="shield-check" href="/api/authentication">
+    Understand the authentication system
+  </Card>
+  <Card title="API Overview" icon="book" href="/api/overview">
+    Explore the complete API reference
+  </Card>
+</CardGroup>

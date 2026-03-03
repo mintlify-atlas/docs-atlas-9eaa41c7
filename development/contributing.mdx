@@ -1,0 +1,528 @@
+---
+title: Contributing
+description: Guidelines for contributing to ZeroStarter. Learn about development workflow, code standards, and how to submit contributions.
+---
+
+We welcome contributions to ZeroStarter! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated. This guide outlines the process for contributing and maintaining code quality.
+
+## Quick Start
+
+<Steps>
+
+<Step title="Fork and Clone">
+  
+  Fork the repository and create a new branch with a descriptive name:
+  
+  ```bash
+  # Clone your fork
+  git clone https://github.com/YOUR_USERNAME/zerostarter.git
+  cd zerostarter
+  
+  # Create a branch (use descriptive names)
+  git checkout -b feat/your-feature-name
+  # or
+  git checkout -b fix/your-bug-fix
+  ```
+  
+  <Note>
+    Use prefixes like `feat/`, `fix/`, `docs/`, `chore/` for branch names.
+  </Note>
+  
+</Step>
+
+<Step title="Install Dependencies">
+  
+  ZeroStarter uses Bun as its package manager and runtime:
+  
+  ```bash
+  # Install dependencies
+  bun install
+  
+  # Set up environment variables
+  cp .env.example .env
+  
+  # Generate and migrate database
+  bun run db:generate
+  bun run db:migrate
+  ```
+  
+</Step>
+
+<Step title="Make Changes">
+  
+  Make your changes following the [code standards](#code-standards) below.
+  
+  Add tests if applicable and ensure existing tests pass.
+  
+</Step>
+
+<Step title="Run Quality Checks">
+  
+  Before committing, run these checks to ensure code quality:
+  
+  ```bash
+  # Build the project
+  bun run build
+  
+  # Type checking
+  bun run check-types
+  
+  # Format code
+  bun run format
+  
+  # Lint code
+  bun run lint
+  ```
+  
+  <Note>
+    Pre-commit hooks will automatically run these checks, but it's good practice to run them manually first.
+  </Note>
+  
+</Step>
+
+<Step title="Commit Changes">
+  
+  Commit your changes using [conventional commit](https://www.conventionalcommits.org/) format:
+  
+  ```bash
+  # Examples of good commit messages
+  git commit -m "feat: add user profile settings page"
+  git commit -m "fix: resolve authentication redirect issue"
+  git commit -m "docs: update installation guide"
+  git commit -m "chore: update dependencies"
+  ```
+  
+  See [commit conventions](#commit-conventions) for more details.
+  
+</Step>
+
+<Step title="Submit Pull Request">
+  
+  Push your branch and open a pull request:
+  
+  1. Push your changes: `git push origin your-branch-name`
+  2. Open a PR against the `canary` branch
+  3. Describe your changes, motivation, and any migration notes
+  4. Link related issues if applicable
+  
+</Step>
+
+</Steps>
+
+## Code Standards
+
+### Project Structure
+
+ZeroStarter uses a monorepo architecture organized with Turborepo:
+
+```
+.
+├── api/
+│   └── hono/          # Backend API server (Hono)
+├── web/
+│   └── next/          # Frontend application (Next.js)
+└── packages/
+    ├── auth/          # Shared authentication logic (Better Auth)
+    ├── db/            # Database schema and Drizzle configuration
+    ├── env/           # Type-safe environment variables
+    └── tsconfig/      # Shared TypeScript configuration
+```
+
+### Code Style
+
+<AccordionGroup>
+
+<Accordion title="TypeScript" icon="code">
+
+- Always use TypeScript for type safety
+- Avoid `any` types - use proper typing
+- Export types and interfaces for reusability
+- Use type inference where possible
+
+```typescript
+// Good
+interface User {
+  id: string
+  email: string
+  name: string | null
+}
+
+const getUser = async (id: string): Promise<User> => {
+  // implementation
+}
+
+// Avoid
+const getUser = async (id: any): Promise<any> => {
+  // implementation
+}
+```
+
+</Accordion>
+
+<Accordion title="Imports" icon="arrow-right">
+
+- Use `@/` alias for imports within a workspace
+- Use package names for cross-workspace imports
+- Group imports logically (external, internal, types)
+
+```typescript
+// Good
+import { hono } from "hono"
+import { db } from "@packages/db"
+import { apiClient } from "@/lib/api/client"
+import type { User } from "@/types"
+
+// Avoid
+import { apiClient } from "../../../lib/api/client"
+```
+
+</Accordion>
+
+<Accordion title="Comments" icon="message">
+
+- Only comment when absolutely necessary
+- Code should be self-documenting through clear naming
+- Use comments for complex logic or non-obvious decisions
+
+```typescript
+// Good - self-documenting
+const isUserActive = user.lastLoginAt > thirtyDaysAgo
+
+// Avoid - unnecessary comment
+// Check if user is active
+const isActive = user.lastLoginAt > thirtyDaysAgo
+```
+
+</Accordion>
+
+<Accordion title="Formatting" icon="paintbrush">
+
+Formatting is handled automatically by Oxfmt:
+
+- Run `bun run format` to format all files
+- Run `bun run format:check` to check formatting without changes
+- Pre-commit hooks automatically format staged files
+
+</Accordion>
+
+</AccordionGroup>
+
+## Development Workflow
+
+### Available Scripts
+
+Commonly used scripts from `package.json`:
+
+<Accordion title="Development Scripts">
+
+```bash
+# Start development servers (TUI mode)
+bun dev
+
+# Build all packages and apps
+bun run build
+
+# Type checking across all workspaces
+bun run check-types
+
+# Lint all packages
+bun run lint
+
+# Format code with Oxfmt
+bun run format
+
+# Clean build artifacts and node_modules
+bun run clean
+```
+
+</Accordion>
+
+<Accordion title="Database Scripts">
+
+```bash
+# Generate database migrations
+bun run db:generate
+
+# Run database migrations
+bun run db:migrate
+
+# Open Drizzle Studio (database GUI)
+bun run db:studio
+```
+
+</Accordion>
+
+### Pre-commit Hooks
+
+ZeroStarter uses Lefthook for Git hooks. Pre-commit hooks automatically:
+
+1. **Audit dependencies** (on `canary` branch only)
+   ```bash
+   bun audit --audit-level high
+   ```
+
+2. **Run lint-staged** to format and lint changed files
+   - Formats with Oxfmt
+   - Lints with Oxlint
+   - Manages dependencies in package.json
+
+3. **Build the project** to ensure no build errors
+   ```bash
+   bun run build
+   ```
+
+### Commit Conventions
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) enforced by commitlint:
+
+<CardGroup cols={2}>
+
+<Card title="feat" icon="sparkles">
+  New feature for the user
+  
+  ```
+  feat: add email verification
+  ```
+</Card>
+
+<Card title="fix" icon="wrench">
+  Bug fix for the user
+  
+  ```
+  fix: resolve login redirect issue
+  ```
+</Card>
+
+<Card title="docs" icon="book">
+  Documentation changes
+  
+  ```
+  docs: update API reference
+  ```
+</Card>
+
+<Card title="chore" icon="gear">
+  Maintenance tasks
+  
+  ```
+  chore: update dependencies
+  ```
+</Card>
+
+<Card title="refactor" icon="code">
+  Code refactoring
+  
+  ```
+  refactor: simplify auth logic
+  ```
+</Card>
+
+<Card title="test" icon="check">
+  Adding or updating tests
+  
+  ```
+  test: add user service tests
+  ```
+</Card>
+
+<Card title="perf" icon="gauge">
+  Performance improvements
+  
+  ```
+  perf: optimize database queries
+  ```
+</Card>
+
+<Card title="ci" icon="rocket">
+  CI/CD changes
+  
+  ```
+  ci: update build workflow
+  ```
+</Card>
+
+</CardGroup>
+
+<Accordion title="Commit Message Format">
+
+```
+<type>[(optional scope)]: <description>
+
+[optional body]
+
+[optional footer]
+```
+
+Examples:
+
+```bash
+# Simple commit
+git commit -m "feat: add dark mode toggle"
+
+# With scope
+git commit -m "fix(auth): resolve session expiry issue"
+
+# With body
+git commit -m "feat: add user profile settings
+
+Allow users to update their profile information including
+name, email, and avatar. Includes form validation and
+error handling."
+
+# Breaking change
+git commit -m "feat!: redesign authentication flow
+
+BREAKING CHANGE: Previous auth tokens are no longer valid.
+Users will need to re-authenticate."
+```
+
+</Accordion>
+
+## Pull Request Guidelines
+
+### Before Opening a PR
+
+<Steps>
+
+<Step title="Ensure Quality">
+  
+  - All checks pass (`build`, `check-types`, `format`, `lint`)
+  - Code follows project conventions
+  - Commits follow conventional commit format
+  - No merge conflicts with target branch
+  
+</Step>
+
+<Step title="Write Clear Description">
+  
+  Include in your PR description:
+  - **What**: Brief summary of changes
+  - **Why**: Motivation and context
+  - **How**: Implementation approach (if complex)
+  - **Migration notes**: Any breaking changes or migration steps
+  - **Related issues**: Link to issues being addressed
+  
+</Step>
+
+<Step title="Target Correct Branch">
+  
+  - Target `canary` branch for all PRs
+  - PRs to `main` are only for releases (automated)
+  
+</Step>
+
+</Steps>
+
+### PR Template Example
+
+```markdown
+## Description
+Brief summary of changes
+
+## Motivation
+Why this change is needed
+
+## Changes
+- List of specific changes
+- Each on a new line
+
+## Migration Notes
+Any breaking changes or required migrations
+
+## Related Issues
+Fixes #123
+Related to #456
+```
+
+### Large Changes
+
+<Note>
+  For breaking changes or large features, please open an issue first to discuss the approach before investing significant time in implementation.
+</Note>
+
+## Testing
+
+While ZeroStarter doesn't currently have a comprehensive test suite, we encourage:
+
+- Manual testing of your changes
+- Testing edge cases and error scenarios
+- Verifying type safety with `bun run check-types`
+- Testing in both development and production builds
+
+## Release Process
+
+ZeroStarter uses an automated release workflow:
+
+<Steps>
+
+<Step title="Development">
+  
+  All development happens on the `canary` branch.
+  
+</Step>
+
+<Step title="Changelog">
+  
+  When PRs are merged to `main`, a changelog PR is automatically created to `canary` branch.
+  
+</Step>
+
+<Step title="Version Bump">
+  
+  The changelog PR includes:
+  - Updated `CHANGELOG.md`
+  - Version bump in `package.json`
+  - Contributor attribution
+  
+</Step>
+
+<Step title="Release">
+  
+  Maintainers merge the changelog PR to create a new release.
+  
+</Step>
+
+</Steps>
+
+<Note>
+  Contributors don't need to worry about versioning - it's handled automatically by the CI/CD pipeline.
+</Note>
+
+## Getting Help
+
+<CardGroup cols={2}>
+
+<Card title="GitHub Issues" icon="github" href="https://github.com/nrjdalal/zerostarter/issues">
+  Report bugs or request features
+</Card>
+
+<Card title="Discussions" icon="comments" href="https://github.com/nrjdalal/zerostarter/discussions">
+  Ask questions and share ideas
+</Card>
+
+<Card title="Documentation" icon="book" href="/">
+  Browse the full documentation
+</Card>
+
+<Card title="Twitter/X" icon="twitter" href="https://twitter.com/nrjdalal">
+  Follow @nrjdalal for updates
+</Card>
+
+</CardGroup>
+
+## Code of Conduct
+
+By contributing to ZeroStarter, you agree to:
+
+- Be respectful and inclusive in all interactions
+- Provide constructive feedback
+- Focus on what's best for the community
+- Accept maintainer decisions gracefully
+
+## License
+
+By contributing to ZeroStarter, you agree that your contributions will be licensed under the [MIT License](https://github.com/nrjdalal/zerostarter/blob/canary/LICENSE.md).
+
+---
+
+Thank you for contributing to ZeroStarter! Your efforts help make this project better for everyone.

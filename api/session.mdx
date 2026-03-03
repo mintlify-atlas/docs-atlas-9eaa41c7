@@ -1,0 +1,334 @@
+---
+title: 'Session API'
+description: 'Retrieve current session information for authenticated users'
+---
+
+## Overview
+
+The session endpoint returns detailed information about the current authenticated session, including session metadata like IP address, user agent, and expiration time.
+
+## Endpoint
+
+```
+GET /api/v1/session
+```
+
+<ParamField path="Authentication" type="required">
+  This endpoint requires authentication via session cookie
+</ParamField>
+
+## Request
+
+### Using Hono RPC Client
+
+```typescript
+import { apiClient } from "@/lib/api/client"
+
+const response = await apiClient.v1.session.$get()
+const { data } = await response.json()
+
+console.log(data)
+// {
+//   id: "6kpGKXeJAKfB4MERWrfdyFdKd1ZB0Czo",
+//   userId: "iO8PZYiiwR6e0o9XDtqyAmUemv1Pc8tc",
+//   token: "Ds8MdODZSgu57rbR8hzapFlcv6IwoIgD",
+//   ...
+// }
+```
+
+### Using Fetch
+
+```typescript
+const response = await fetch('https://your-domain.com/api/v1/session', {
+  method: 'GET',
+  credentials: 'include', // Required for cookie-based auth
+})
+
+if (!response.ok) {
+  throw new Error('Authentication required')
+}
+
+const { data } = await response.json()
+```
+
+### Using cURL
+
+```bash
+curl https://your-domain.com/api/v1/session \
+  -H "Cookie: session_token=your_session_token" \
+  -X GET
+```
+
+## Response
+
+### Success Response (200 OK)
+
+<ResponseField name="data" type="object" required>
+  The session object
+
+  <Expandable title="properties">
+    <ResponseField name="id" type="string" required>
+      Unique session identifier
+      
+      **Example:** `"6kpGKXeJAKfB4MERWrfdyFdKd1ZB0Czo"`
+    </ResponseField>
+
+    <ResponseField name="userId" type="string" required>
+      ID of the user who owns this session
+      
+      **Example:** `"iO8PZYiiwR6e0o9XDtqyAmUemv1Pc8tc"`
+    </ResponseField>
+
+    <ResponseField name="token" type="string" required>
+      Session token used for authentication
+      
+      **Example:** `"Ds8MdODZSgu57rbR8hzapFlcv6IwoIgD"`
+    </ResponseField>
+
+    <ResponseField name="expiresAt" type="string" required>
+      ISO 8601 timestamp when the session expires
+      
+      **Format:** `date-time`
+      
+      **Example:** `"2026-01-28T13:06:25.712Z"`
+    </ResponseField>
+
+    <ResponseField name="createdAt" type="string" required>
+      ISO 8601 timestamp when the session was created
+      
+      **Format:** `date-time`
+      
+      **Example:** `"2026-01-21T13:06:25.712Z"`
+    </ResponseField>
+
+    <ResponseField name="updatedAt" type="string" required>
+      ISO 8601 timestamp when the session was last updated
+      
+      **Format:** `date-time`
+      
+      **Example:** `"2026-01-21T13:06:25.712Z"`
+    </ResponseField>
+
+    <ResponseField name="ipAddress" type="string | null" required>
+      IP address from which the session was created
+      
+      **Example:** `"202.9.121.21"`
+    </ResponseField>
+
+    <ResponseField name="userAgent" type="string | null" required>
+      User agent string from the client that created the session
+      
+      **Example:** `"Mozilla/5.0 Chrome/143.0.0.0 Safari/537.36"`
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Schema
+
+```typescript
+interface SessionResponse {
+  data: {
+    id: string
+    userId: string
+    token: string
+    expiresAt: string // ISO 8601 date-time
+    createdAt: string // ISO 8601 date-time
+    updatedAt: string // ISO 8601 date-time
+    ipAddress: string | null
+    userAgent: string | null
+  }
+}
+```
+
+### Example Response
+
+```json
+{
+  "data": {
+    "id": "6kpGKXeJAKfB4MERWrfdyFdKd1ZB0Czo",
+    "userId": "iO8PZYiiwR6e0o9XDtqyAmUemv1Pc8tc",
+    "token": "Ds8MdODZSgu57rbR8hzapFlcv6IwoIgD",
+    "expiresAt": "2026-01-28T13:06:25.712Z",
+    "createdAt": "2026-01-21T13:06:25.712Z",
+    "updatedAt": "2026-01-21T13:06:25.712Z",
+    "ipAddress": "202.9.121.21",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+  }
+}
+```
+
+### Error Response (401 Unauthorized)
+
+Returned when the session is invalid, expired, or missing:
+
+```json
+{
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
+}
+```
+
+## Implementation
+
+The session endpoint is defined in `api/hono/src/routers/v1.ts`:
+
+```typescript api/hono/src/routers/v1.ts
+const sessionSchema = z.object({
+  createdAt: z.string().meta({ format: "date-time", example: "2026-01-21T13:06:25.712Z" }),
+  expiresAt: z.string().meta({ format: "date-time", example: "2026-01-28T13:06:25.712Z" }),
+  id: z.string().meta({ example: "6kpGKXeJAKfB4MERWrfdyFdKd1ZB0Czo" }),
+  ipAddress: z.string().nullable().meta({ example: "202.9.121.21" }),
+  token: z.string().meta({ example: "Ds8MdODZSgu57rbR8hzapFlcv6IwoIgD" }),
+  updatedAt: z.string().meta({ format: "date-time", example: "2026-01-21T13:06:25.712Z" }),
+  userAgent: z.string().nullable().meta({ example: "Mozilla/5.0 Chrome/143.0.0.0 Safari/537.36" }),
+  userId: z.string().meta({ example: "iO8PZYiiwR6e0o9XDtqyAmUemv1Pc8tc" }),
+})
+
+export const v1Router = new Hono<{
+  Variables: Session
+}>()
+  .use("/*", authMiddleware)
+  .get(
+    "/session",
+    describeRoute({
+      tags: ["v1"],
+      description: "Get current session only",
+      responses: {
+        200: {
+          description: "OK",
+          content: {
+            "application/json": {
+              schema: resolver(z.object({ data: sessionSchema })),
+            },
+          },
+        },
+      },
+    }),
+    (c) => {
+      const data = c.get("session")
+      return c.json({ data })
+    },
+  )
+```
+
+## Authentication Middleware
+
+The `authMiddleware` validates the session and injects it into the request context:
+
+1. Extracts the session token from the HTTP-only cookie
+2. Validates the session with Better Auth
+3. Retrieves the session and user from the database
+4. Injects both into the Hono context as `c.get("session")` and `c.get("user")`
+5. Returns 401 Unauthorized if validation fails
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Session Validation" icon="circle-check">
+    Verify the current session is valid before performing sensitive operations
+  </Card>
+  <Card title="Session Metadata" icon="info">
+    Display session information in user account settings
+  </Card>
+  <Card title="Security Monitoring" icon="shield">
+    Track IP addresses and user agents for security auditing
+  </Card>
+  <Card title="Session Expiry" icon="clock">
+    Show users when their session will expire
+  </Card>
+</CardGroup>
+
+## React Hook Example
+
+Create a custom hook to fetch session data:
+
+```typescript hooks/use-session.ts
+import { apiClient } from "@/lib/api/client"
+import { useQuery } from "@tanstack/react-query"
+
+export function useSession() {
+  return useQuery({
+    queryKey: ["session"],
+    queryFn: async () => {
+      const response = await apiClient.v1.session.$get()
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch session")
+      }
+      
+      const { data } = await response.json()
+      return data
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+```
+
+Usage in a component:
+
+```tsx components/session-info.tsx
+import { useSession } from "@/hooks/use-session"
+
+export function SessionInfo() {
+  const { data: session, isLoading } = useSession()
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return (
+    <div>
+      <h2>Session Information</h2>
+      <p>Session ID: {session.id}</p>
+      <p>Expires: {new Date(session.expiresAt).toLocaleString()}</p>
+      <p>IP Address: {session.ipAddress}</p>
+    </div>
+  )
+}
+```
+
+## Session vs Better Auth Endpoint
+
+ZeroStarter provides two ways to get session information:
+
+<AccordionGroup>
+  <Accordion title="GET /api/v1/session" icon="zap">
+    **Use when:**
+    - You only need the session object
+    - You want faster response times
+    - You're building a custom session UI
+    
+    **Returns:** Session object only
+  </Accordion>
+  
+  <Accordion title="GET /api/auth/get-session" icon="shield">
+    **Use when:**
+    - You need both session and user data
+    - You're using Better Auth client libraries
+    - You want the complete Better Auth response format
+    
+    **Returns:** Both session and user objects
+  </Accordion>
+</AccordionGroup>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="User API" icon="user" href="/api/user">
+    Get the current authenticated user information
+  </Card>
+  <Card title="Better Auth" icon="shield-check" href="/api/authentication">
+    Learn about authentication endpoints
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="User Endpoint" icon="user" href="/api/user">
+    Learn how to fetch user data
+  </Card>
+  <Card title="Authentication" icon="shield-check" href="/api/authentication">
+    Understand the authentication system
+  </Card>
+</CardGroup>

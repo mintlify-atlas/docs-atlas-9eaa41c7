@@ -1,0 +1,179 @@
+---
+title: 'API Overview'
+description: 'Introduction to the ZeroStarter API, type-safe RPC client, and OpenAPI documentation'
+---
+
+## Introduction
+
+The ZeroStarter API is built with [Hono](https://hono.dev/), a lightweight, ultrafast web framework for the edge. It provides a modern REST API with full TypeScript support and automatic OpenAPI documentation generation.
+
+## Base URL
+
+The API is available at:
+
+```
+https://your-domain.com/api
+```
+
+For local development:
+
+```
+http://localhost:3001/api
+```
+
+## Type-Safe RPC Client
+
+ZeroStarter leverages Hono's RPC client for end-to-end type safety between your API and frontend. The client is automatically typed based on your API routes, providing full IntelliSense and compile-time error checking.
+
+### Client Setup
+
+The API client is pre-configured in your Next.js application:
+
+```typescript web/next/src/lib/api/client.ts
+import type { AppType } from "@api/hono"
+import { hc } from "hono/client"
+import { config } from "@/lib/config"
+
+const url = config.api.internalUrl ? config.api.internalUrl : config.api.url
+
+const honoClient = hc<AppType>(url, {
+  init: {
+    credentials: "include",
+  },
+})
+
+export const apiClient = honoClient.api
+```
+
+### Usage Example
+
+```typescript
+import { apiClient } from "@/lib/api/client"
+
+// Get health status
+const response = await apiClient.health.$get()
+const { data } = await response.json()
+
+// Get current user (authenticated)
+const userResponse = await apiClient.v1.user.$get()
+const { data: user } = await userResponse.json()
+```
+
+## Interactive API Documentation
+
+ZeroStarter includes interactive API documentation powered by [Scalar](https://scalar.com/):
+
+<Card title="API Documentation" icon="book" href="/api/docs">
+  Access the interactive API documentation at `/api/docs`
+</Card>
+
+The documentation is automatically generated from your route definitions and includes:
+
+- All available endpoints
+- Request/response schemas
+- Type-safe code examples using `hono/client`
+- Interactive request testing
+
+## OpenAPI Specification
+
+The OpenAPI specification is available at:
+
+```
+GET /api/openapi.json
+```
+
+This JSON document follows the OpenAPI 3.0 specification and can be imported into tools like Postman, Insomnia, or used to generate client SDKs.
+
+## API Structure
+
+The API is organized into the following sections:
+
+<CardGroup cols={2}>
+  <Card title="System" icon="heart-pulse" href="/api/health">
+    Health check and system status endpoints
+  </Card>
+  <Card title="Authentication" icon="shield-check" href="/api/authentication">
+    Better Auth endpoints for authentication flows
+  </Card>
+  <Card title="Session" icon="clock" href="/api/session">
+    Retrieve current session information
+  </Card>
+  <Card title="User" icon="user" href="/api/user">
+    Get current authenticated user data
+  </Card>
+</CardGroup>
+
+## Response Format
+
+All API responses follow a consistent format:
+
+### Success Response
+
+```json
+{
+  "data": {
+    // Response data here
+  }
+}
+```
+
+### Error Response
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message"
+  }
+}
+```
+
+## CORS Configuration
+
+The API includes CORS middleware with the following configuration:
+
+- **Allowed Origins**: Configured via `HONO_TRUSTED_ORIGINS` environment variable
+- **Allowed Headers**: `content-type`, `authorization`
+- **Allowed Methods**: `GET`, `OPTIONS`, `POST`, `PUT`
+- **Credentials**: Enabled for cookie-based authentication
+- **Max Age**: 600 seconds
+
+## Rate Limiting
+
+All API endpoints are protected by rate limiting middleware to prevent abuse. Rate limits are applied per IP address.
+
+## Authentication
+
+Protected endpoints (under `/api/v1/*`) require authentication. ZeroStarter uses [Better Auth](https://better-auth.com/) for authentication, which handles:
+
+- Session management
+- Social OAuth (GitHub, Google)
+- Email/password authentication
+- Organization and team management
+
+Authentication is cookie-based. Include credentials in your requests:
+
+```typescript
+fetch('/api/v1/user', {
+  credentials: 'include'
+})
+```
+
+The Hono RPC client is pre-configured with `credentials: "include"` for automatic cookie handling.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Health Check" icon="heart-pulse" href="/api/health">
+    Learn about the health endpoint
+  </Card>
+  <Card title="Authentication" icon="shield-check" href="/api/authentication">
+    Explore authentication endpoints
+  </Card>
+  <Card title="Session API" icon="clock" href="/api/session">
+    Get session information
+  </Card>
+  <Card title="User API" icon="user" href="/api/user">
+    Access user data
+  </Card>
+</CardGroup>

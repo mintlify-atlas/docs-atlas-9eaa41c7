@@ -1,80 +1,242 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get ZeroStarter up and running in minutes with this step-by-step guide.
 ---
 
-## Get started in three steps
+# Quick Start
 
-Get your documentation site running locally and make your first customization.
+Get ZeroStarter running on your local machine in just a few minutes. This guide will walk you through cloning the template, installing dependencies, and starting the development servers.
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+Before you begin, make sure you have:
 
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+- **[Bun](https://bun.sh)** v1.3.7 or higher installed
+- **[PostgreSQL](https://www.postgresql.org)** database (local or remote)
+- **Git** for version control
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  ZeroStarter uses Bun as its primary runtime and package manager. If you haven't installed Bun yet, run:
+  ```bash
+  curl -fsSL https://bun.sh/install | bash
+  ```
 </Note>
+
+## Step 1: Clone the Template
+
+Use `gitpick` to clone ZeroStarter without the git history:
+
+```bash
+bunx gitpick https://github.com/nrjdalal/zerostarter/tree/main
+cd zerostarter
+```
+
+<Tip>
+  `gitpick` gives you a clean copy of the repository without the commit history, perfect for starting fresh.
+</Tip>
+
+## Step 2: Install Dependencies
+
+Install all workspace dependencies using Bun:
+
+```bash
+bun install
+```
+
+This will install dependencies for all packages in the monorepo (api, web, and shared packages).
+
+## Step 3: Set Up Environment Variables
+
+Copy the example environment file and configure your variables:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and configure the essential variables:
+
+<Steps>
+  <Step title="Generate Auth Secret">
+    Generate a secure secret for Better Auth:
+    ```bash
+    openssl rand -base64 32
+    ```
+    Add it to `.env`:
+    ```bash
+    BETTER_AUTH_SECRET="your-generated-secret"
+    ```
+  </Step>
+  
+  <Step title="Configure Database">
+    Add your PostgreSQL connection string:
+    ```bash
+    POSTGRES_URL="postgresql://user:password@localhost:5432/zerostarter"
+    ```
+    
+    <Tip>
+      Need a quick database? Use `bunx pglaunch -k` to generate a free PostgreSQL URL from services like Neon or Supabase.
+    </Tip>
+  </Step>
+  
+  <Step title="Set Application URLs">
+    Configure your development URLs (defaults work for local development):
+    ```bash
+    NEXT_PUBLIC_APP_URL=http://localhost:3000
+    NEXT_PUBLIC_API_URL=http://localhost:4000
+    HONO_APP_URL=http://localhost:4000
+    HONO_TRUSTED_ORIGINS=http://localhost:3000
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  OAuth providers (GitHub, Google) are optional for development. You can configure them later by adding the respective client IDs and secrets.
+</Warning>
+
+## Step 4: Set Up the Database
+
+Generate and run database migrations:
+
+<CodeGroup>
+```bash Generate migrations
+bun run db:generate
+```
+
+```bash Run migrations
+bun run db:migrate
+```
+</CodeGroup>
+
+This will:
+1. Build the environment package
+2. Generate Drizzle ORM migrations from your schema
+3. Apply migrations to your database
+
+<Note>
+  You can explore your database using Drizzle Studio:
+  ```bash
+  bun run db:studio
+  ```
+  This opens a web interface at `https://local.drizzle.studio`
+</Note>
+
+## Step 5: Start Development Servers
+
+Start all development servers with a single command:
+
+```bash
+bun dev
+```
+
+This command uses Turborepo to:
+- Build shared packages (auth, db, env)
+- Start the Hono API server on `http://localhost:4000`
+- Start the Next.js frontend on `http://localhost:3000`
+- Enable hot reloading for all packages
+
+<Tip>
+  Turborepo's TUI (Text User Interface) gives you a beautiful dashboard showing logs from all running services. Press `Ctrl+C` to stop all servers.
+</Tip>
+
+## Step 6: Verify Installation
+
+Open your browser and verify everything is working:
+
+<Steps>
+  <Step title="Check Frontend">
+    Visit [http://localhost:3000](http://localhost:3000) to see the Next.js application.
+  </Step>
+  
+  <Step title="Check API">
+    Visit [http://localhost:4000/api/health](http://localhost:4000/api/health) to verify the API is running.
+    
+    You should see:
+    ```json
+    {
+      "data": {
+        "message": "ok",
+        "version": "0.0.14",
+        "environment": "local"
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Explore API Docs">
+    Visit [http://localhost:4000/api/docs](http://localhost:4000/api/docs) to see the interactive API documentation powered by Scalar.
+  </Step>
+</Steps>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Explore the Architecture" icon="sitemap" href="/architecture">
+    Learn about the tech stack and monorepo structure.
+  </Card>
+  
+  <Card title="Detailed Installation" icon="gear" href="/installation">
+    Configure OAuth providers, analytics, and other integrations.
+  </Card>
+  
+  <Card title="Type-Safe API" icon="shield-check" href="/type-safe-api">
+    Learn how to use Hono RPC for end-to-end type safety.
+  </Card>
+  
+  <Card title="Project Structure" icon="folder" href="/project-structure">
+    Understand how the monorepo is organized.
+  </Card>
+</CardGroup>
+
+## Common Commands
+
+Here are the most frequently used commands:
+
+| Command | Description |
+|---------|-------------|
+| `bun dev` | Start all development servers |
+| `bun build` | Build all packages and applications |
+| `bun run db:generate` | Generate database migrations |
+| `bun run db:migrate` | Run database migrations |
+| `bun run db:studio` | Open Drizzle Studio |
+| `bun run lint` | Lint all packages |
+| `bun run format` | Format code with Oxfmt |
+| `bun run check-types` | Type-check all packages |
+
+<Tip>
+  See the [Scripts documentation](/core/scripts) for a complete list of available commands.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port already in use">
+    If ports 3000 or 4000 are already in use, you can change them:
+    
+    - Frontend: Edit `web/next/package.json` and modify the `dev` script
+    - Backend: Change `HONO_PORT` in your environment variables
+  </Accordion>
+  
+  <Accordion title="Database connection failed">
+    Verify your `POSTGRES_URL` is correct and the database is running:
+    ```bash
+    psql $POSTGRES_URL -c "SELECT 1;"
+    ```
+  </Accordion>
+  
+  <Accordion title="Module not found errors">
+    Clean and reinstall dependencies:
+    ```bash
+    bun run clean
+    bun install
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Need Help?
+
+If you encounter any issues:
+
+- Check the [Installation guide](/installation) for detailed setup instructions
+- Review the [Architecture](/architecture) to understand the system design
+- Visit the [GitHub repository](https://github.com/nrjdalal/zerostarter) to open an issue
+- Follow [@nrjdalal](https://twitter.com/nrjdalal) for updates and tips

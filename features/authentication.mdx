@@ -1,0 +1,294 @@
+---
+title: Authentication
+description: Better Auth integration with GitHub and Google OAuth, session management, and organization support
+---
+
+ZeroStarter uses [Better Auth](https://better-auth.com) for a complete, type-safe authentication system with social providers, session management, and multi-tenant organization support.
+
+## Architecture
+
+Authentication is implemented as a shared package (`@packages/auth`) that can be used across your monorepo:
+
+<CodeGroup>
+
+```typescript packages/auth/src/index.ts
+import { betterAuth } from "better-auth"
+import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { openAPI as openAPIPlugin, organization as organizationPlugin } from "better-auth/plugins"
+import { db, account, session, user, verification, organization, team, teamMember, member, invitation } from "@packages/db"
+import { env } from "@packages/env/auth"
+
+export const auth = betterAuth({
+  baseURL: env.HONO_APP_URL,
+  trustedOrigins: env.HONO_TRUSTED_ORIGINS,
+  database: drizzleAdapter(db, {
+    provider: "pg",
+    schema: {
+      account,
+      invitation,
+      member,
+      organization,
+      session,
+      team,
+      teamMember,
+      user,
+      verification,
+    },
+  }),
+  onAPIError: {
+    throw: true,
+  },
+  plugins: [
+    openAPIPlugin(),
+    organizationPlugin({
+      teams: { enabled: true },
+    }),
+  ],
+  socialProviders: {
+    github: {
+      clientId: env.GITHUB_CLIENT_ID,
+      clientSecret: env.GITHUB_CLIENT_SECRET,
+    },
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+    },
+  },
+})
+
+export type Session = typeof auth.$Infer.Session
+```
+
+```typescript web/next/src/lib/auth/index.ts
+import type { Session } from "@packages/auth"
+import { headers } from "next/headers"
+import { apiClient } from "@/lib/api/client"
+
+export const auth = {
+  api: {
+    getSession: async () => {
+      try {
+        const response = await apiClient.auth["get-session"].$get(undefined, {
+          headers: Object.fromEntries((await headers()).entries()),
+        })
+        if (!response.ok) return null
+        const text = await response.text()
+        if (!text) return null
+        return JSON.parse(text) as Session | null
+      } catch {
+        return null
+      }
+    },
+  },
+}
+```
+
+</CodeGroup>
+
+## Social Providers
+
+ZeroStarter comes pre-configured with GitHub and Google OAuth providers.
+
+<Steps>
+
+### Generate OAuth credentials
+
+<Tabs items={["GitHub", "Google"]}>
+  <Tab value="GitHub">
+    1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+    2. Create a new OAuth App
+    3. Set Authorization callback URL to `http://localhost:4000/api/auth/callback/github`
+    4. Copy the Client ID and generate a Client Secret
+  </Tab>
+  <Tab value="Google">
+    1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+    2. Create a new OAuth 2.0 Client ID
+    3. Add authorized redirect URI: `http://localhost:4000/api/auth/callback/google`
+    4. Copy the Client ID and Client Secret
+  </Tab>
+</Tabs>
+
+### Configure environment variables
+
+Add your OAuth credentials to `.env`:
+
+```bash .env
+# Generate at https://github.com/settings/developers
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+
+# Generate at https://console.cloud.google.com/apis/credentials
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+```
+
+### Generate auth secret
+
+Generate a secure secret for session encryption:
+
+```bash
+openssl rand -base64 32
+```
+
+Add it to your `.env`:
+
+```bash .env
+BETTER_AUTH_SECRET=your_generated_secret
+```
+
+</Steps>
+
+## Session Management
+
+<Note>
+  Better Auth handles sessions automatically with secure, HTTP-only cookies. Sessions include IP address and user agent tracking for security.
+</Note>
+
+### Get current session
+
+In Server Components:
+
+```typescript app/page.tsx
+import { auth } from "@/lib/auth"
+
+export default async function Page() {
+  const session = await auth.api.getSession()
+  
+  if (!session?.user) {
+    return <div>Not authenticated</div>
+  }
+  
+  return <div>Welcome, {session.user.name}</div>
+}
+```
+
+### Protect routes
+
+Redirect unauthenticated users:
+
+```typescript app/(protected)/layout.tsx
+import { redirect } from "next/navigation"
+import { auth } from "@/lib/auth"
+
+export default async function ProtectedLayout({ 
+  children 
+}: { 
+  children: React.ReactNode 
+}) {
+  const session = await auth.api.getSession()
+  
+  if (!session?.user) redirect("/")
+  
+  return <>{children}</>
+}
+```
+
+## Organizations & Teams
+
+Better Auth's organization plugin provides multi-tenant support with role-based access control.
+
+<Info>
+  Organizations can have multiple teams, and users can be members of multiple organizations with different roles.
+</Info>
+
+### Database schema
+
+The organization schema includes:
+
+- **Organizations**: Top-level tenant containers
+- **Members**: Users within organizations (with roles: `member`, `admin`, etc.)
+- **Teams**: Sub-groups within organizations
+- **Team Members**: Users assigned to specific teams
+- **Invitations**: Pending invitations to join organizations
+
+```typescript packages/db/src/schema/auth.ts
+export const organization = pgTable("organization", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  logo: text("logo"),
+  createdAt: timestamp("created_at").notNull(),
+  metadata: text("metadata"),
+})
+
+export const member = pgTable("member", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  role: text("role").default("member").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+})
+```
+
+### Active organization tracking
+
+Sessions track the active organization and team:
+
+```typescript packages/db/src/schema/auth.ts
+export const session = pgTable("session", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  activeOrganizationId: text("active_organization_id"),
+  activeTeamId: text("active_team_id"),
+  // ... other fields
+})
+```
+
+## Cross-Subdomain Cookies
+
+For production deployments with multiple subdomains, ZeroStarter includes utilities for cross-subdomain cookie sharing:
+
+```typescript packages/auth/src/lib/utils.ts
+/**
+ * Extracts the cookie domain from a URL for cross-subdomain cookie sharing.
+ *
+ * @example
+ * getCookieDomain("https://api.zerostarter.dev")             // ".zerostarter.dev"
+ * getCookieDomain("https://api.canary.zerostarter.dev")      // ".canary.zerostarter.dev"
+ * getCookieDomain("http://localhost:4000")                   // undefined
+ */
+export function getCookieDomain(url: string): string | undefined {
+  try {
+    const { hostname } = new URL(url)
+    if (hostname === "localhost" || hostname === "127.0.0.1") return undefined
+    const parts = hostname.split(".")
+    if (parts.length <= 2) return undefined
+    return `.${parts.slice(1).join(".")}`
+  } catch {
+    return undefined
+  }
+}
+```
+
+<Warning>
+  Cookie domains are automatically configured based on your `HONO_APP_URL`. In development (localhost), cookies work without domain configuration.
+</Warning>
+
+## Type Safety
+
+Better Auth provides full type inference for sessions:
+
+```typescript
+import type { Session } from "@packages/auth"
+
+// Session type includes:
+// - session.user: User object with id, name, email, image, etc.
+// - session.user.id: string
+// - session.user.email: string
+// - session.user.emailVerified: boolean
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Schema" icon="database" href="/features/database">
+    Explore the complete authentication database schema with Drizzle ORM
+  </Card>
+  <Card title="Better Auth Docs" icon="book" href="https://better-auth.com">
+    Learn more about Better Auth features and plugins
+  </Card>
+</CardGroup>

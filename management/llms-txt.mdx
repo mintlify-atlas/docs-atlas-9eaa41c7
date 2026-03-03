@@ -1,0 +1,217 @@
+---
+title: llms.txt
+description: Auto-generated documentation endpoint for AI assistants.
+---
+
+## Overview
+
+`llms.txt` is an auto-generated documentation endpoint that provides structured content for AI assistants. It's accessible at `/llms.txt`, `/blog.md`, `/blog/*.md`, `/docs.md`, and `/docs/*.md`.
+
+## How It Works
+
+The endpoint automatically scans documentation and blog content, generating markdown files that include:
+
+- Complete documentation pages
+- Blog articles
+- Structured navigation
+- Cross-references between pages
+
+## Access Points for AI Assistants
+
+The following endpoints are available:
+
+- `/llms.txt` - Index for complete documentation
+- `/blog.md` - Index for latest articles and updates
+- `/llms-full.txt` - Complete documentation in one page for AI assistants
+- `/docs/{page}.md` - Individual documentation pages in markdown
+- `/blog/{post}.md` - Individual blog posts in markdown
+
+## Implementation
+
+The endpoint is implemented in `web/next/src/app/(llms.txt)/llms.txt/[[...slug]]/route.ts`:
+
+```ts web/next/src/app/(llms.txt)/llms.txt/[[...slug]]/route.ts
+import { notFound } from "next/navigation"
+import blogMeta from "@/../content/blog/meta.json"
+import docsMeta from "@/../content/docs/meta.json"
+import { config } from "@/lib/config"
+import { sortByMeta } from "@/lib/sort-by-meta"
+import { blogSource, docsSource } from "@/lib/source"
+
+export const revalidate = false
+
+export async function GET(_req: Request, { params }: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = await params
+
+  if (!slug) {
+    const docsPages = sortByMeta(docsSource.getPages(), docsMeta.pages, "/docs")
+    const docsIndex = docsPages
+      .map((p) => `- [${p.data.title}](${config.app.url}${p.url}.md): ${p.data.description}`)
+      .join("\n")
+
+    return new Response(
+      `# ${config.app.name}
+
+> ${config.app.description}
+
+## Documentation
+
+> Complete documentation for ${config.app.name}
+
+${docsIndex}
+
+## Optional
+
+- [Blog](${config.app.url}/blog.md): Latest articles and updates
+`,
+      {
+        headers: {
+          "Content-Type": "text/markdown",
+        },
+      },
+    )
+  }
+
+  // ... rest of the implementation
+}
+```
+
+## Features
+
+- Automatic markdown generation with links and metadata
+- Uses `docsSource` from Fumadocs for documentation
+- Uses `blogSource` from Fumadocs for blog content
+- Processes markdown with `includeProcessedMarkdown: true`
+- Returns plain text markdown for AI consumption
+
+## Configuration
+
+Enable processed markdown in `web/next/source.config.ts`:
+
+```ts web/next/source.config.ts
+import { defineConfig, defineDocs } from "fumadocs-mdx/config"
+
+export const docs = defineDocs({
+  dir: "content/docs",
+  docs: {
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+})
+
+export const blog = defineDocs({
+  dir: "content/blog",
+  docs: {
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+})
+
+export default defineConfig()
+```
+
+## Response Format
+
+### Index Response (`/llms.txt`)
+
+```markdown
+# ZeroStarter
+
+> Modern, type-safe SaaS starter template
+
+## Documentation
+
+> Complete documentation for ZeroStarter
+
+- [Getting Started](https://example.com/docs/getting-started.md): Quick start guide
+- [Architecture](https://example.com/docs/architecture.md): System architecture overview
+
+## Optional
+
+- [Blog](https://example.com/blog.md): Latest articles and updates
+```
+
+### Blog Index (`/blog.md`)
+
+```markdown
+# ZeroStarter
+
+> Modern, type-safe SaaS starter template
+
+## Blog
+
+> Latest articles and updates about ZeroStarter
+
+- [Getting Started](https://example.com/blog/getting-started.md): Introduction to ZeroStarter
+- [Type-Safe APIs](https://example.com/blog/type-safe-apis.md): Building type-safe APIs
+
+## Optional
+
+- [Documentation](https://example.com/llms.txt): Complete documentation
+```
+
+### Individual Page (`/docs/{page}.md`)
+
+```markdown
+# [Page Title](https://example.com/docs/page)
+Page content in markdown format...
+
+---
+
+> To find navigation and other pages in this documentation, fetch the llms.txt file at: https://example.com/llms.txt
+```
+
+## Use Cases
+
+1. **AI Code Assistants**: Provide context about your project to AI assistants
+2. **Documentation Scrapers**: Allow automated tools to index your documentation
+3. **LLM Training**: Make your documentation accessible for language model training
+4. **Search Engines**: Provide structured content for better SEO
+
+## Best Practices
+
+1. **Keep content up-to-date**: The endpoint uses live data from Fumadocs sources
+2. **Use clear descriptions**: AI assistants rely on page descriptions for context
+3. **Structure content well**: Use headings and sections for better parsing
+4. **Include metadata**: Frontmatter helps AI understand page context
+
+<Note>
+The llms.txt endpoint automatically updates when you add or modify documentation. No manual updates required!
+</Note>
+
+## Testing
+
+Test the endpoint:
+
+```bash
+# Fetch the index
+curl https://yourdomain.com/llms.txt
+
+# Fetch blog index
+curl https://yourdomain.com/blog.md
+
+# Fetch a specific page
+curl https://yourdomain.com/docs/getting-started/installation.md
+```
+
+## SEO Benefits
+
+- Machine-readable documentation format
+- Structured content for AI assistants
+- Automatic updates when content changes
+- Cross-references between pages
+- Clear navigation structure
+
+## Privacy
+
+<Warning>
+All content accessible via llms.txt endpoints is publicly available. Don't include sensitive information in your documentation.
+</Warning>
+
+## Resources
+
+- [llms.txt Specification](https://llmstxt.org/)
+- [Fumadocs Documentation](https://fumadocs.vercel.app/)
+- [MDX Documentation](https://mdxjs.com/)

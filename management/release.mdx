@@ -1,0 +1,269 @@
+---
+title: Release Management
+description: Automate releases and changelog generation.
+---
+
+## Overview
+
+ZeroStarter uses an automated release workflow that manages versioning, changelog generation, and GitHub releases. The workflow operates with `canary` (development) and `main` (production) branches, automatically creating draft PRs for review.
+
+## Prerequisites
+
+<Steps>
+
+### Enable GitHub Actions permissions
+
+Enable the following GitHub setting for the workflow to function:
+
+**Settings → Actions → General → Workflow permissions**
+
+- ✅ **Allow GitHub Actions to create and approve pull requests**
+
+This setting is required for the automated workflows to create draft PRs.
+
+### Configure changelog settings
+
+Create `changelog.config.ts` in the project root:
+
+```ts changelog.config.ts
+export default {
+  repo: "https://github.com/your-username/your-repo",
+  hideAuthorEmail: true,
+}
+```
+
+- **`repo`**: Your GitHub repository URL
+- **`hideAuthorEmail`**: Set to `true` to hide author emails in changelog (optional)
+
+</Steps>
+
+## Workflow
+
+This project uses an automated release workflow with `canary` (development) and `main` (production) branches. All PRs are created as drafts for manual review.
+
+<Steps>
+
+### Development Branch (canary)
+
+Push changes to `canary` triggers `auto-canary-into-main.yml` workflow.
+
+**Auto-creates draft PR:**
+
+- Title: `ci(release): 🚀 merge canary into main`
+- Head: `canary` → Base: `main`
+
+Workflow implementation:
+
+```yaml .github/workflows/auto-canary-into-main.yml
+name: auto-canary-into-main
+
+on:
+  push:
+    branches: ["canary"]
+  workflow_dispatch:
+
+jobs:
+  auto-canary-into-main:
+    name: Auto create PR to merge canary into main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Pull Request
+        run: |
+          curl -sL -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d "{\"title\": \"ci(release): 🚀 merge canary into main\", \"head\": \"canary\", \"base\": \"main\", \"draft\": true}"
+```
+
+### Production Branch (main)
+
+Manually review and merge the draft PR from `canary` → `main`.
+
+After merge, `auto-release.yml` workflow triggers automatically.
+
+### Update Changelog Branch
+
+Workflow creates/updates `changelog` branch from `main`:
+
+- Generates `CHANGELOG.md` using `changelogen --bump`
+- Bumps version in `package.json`
+- Commits: `ci(changelog): update changelog and bump version`
+
+Workflow implementation:
+
+```yaml .github/workflows/auto-release.yml
+- name: Update changelog branch from main
+  run: |
+    git checkout main
+    git branch -D changelog 2>/dev/null || true
+    git checkout -b changelog
+    bunx changelogen --bump --no-commit || true
+    bunx oxfmt --write CHANGELOG.md
+    bun install --ignore-scripts
+    git add CHANGELOG.md package.json
+    git commit -m "ci(changelog): update changelog and bump version"
+    git push origin changelog --force
+```
+
+### Changelog PR to Canary
+
+If changes detected, auto-creates draft PR:
+
+- Title: `ci(changelog): 📖 update changelog and bump version`
+- Head: `changelog` → Base: `canary`
+
+### Back to Development
+
+Manually review and merge the changelog PR to sync version and changelog back to `canary`.
+
+</Steps>
+
+## Build Checks
+
+`auto-check-build.yml` runs on pushes to `canary` and PR updates, executing lint, build, and type checks.
+
+```yaml .github/workflows/auto-check-build.yml
+- name: Audit, Lint, and Build
+  run: |
+    bun audit --audit-level high
+    bun run lint
+    bun run build
+```
+
+## Changelog Generation
+
+`changelogen` generates `CHANGELOG.md` with categorized changes, commit links, and contributors.
+
+### Changelog Format
+
+```markdown
+## v0.0.7
+
+[compare changes](https://github.com/user/repo/compare/v0.0.6...v0.0.7)
+
+### 📖 Documentation
+
+- Update installation guide ([abc123](https://github.com/user/repo/commit/abc123))
+
+### 🏡 Chore
+
+- Bump dependencies to latest versions ([def456](https://github.com/user/repo/commit/def456))
+
+### Contributors
+
+- John Doe
+```
+
+### Commit Categories
+
+Based on conventional commits:
+
+| Prefix     | Category          | Icon |
+| ---------- | ----------------- | ---- |
+| `feat`     | Features          | ✨   |
+| `fix`      | Bug Fixes         | 🐛   |
+| `docs`     | Documentation     | 📖   |
+| `style`    | Styles            | 💄   |
+| `refactor` | Code Refactoring  | ♻️   |
+| `perf`     | Performance       | ⚡   |
+| `test`     | Tests             | ✅   |
+| `chore`    | Chores            | 🏡   |
+| `ci`       | CI                | 🤖   |
+
+## GitHub Releases
+
+When creating a GitHub release:
+
+<Steps>
+
+### Go to Releases
+
+Navigate to your repository's Releases page and click "Draft a new release"
+
+### Create Tag
+
+Create a new tag matching the version in `package.json` (e.g., `v0.0.7`)
+
+### Copy from CHANGELOG.md
+
+Copy the changelog entry for that version from `CHANGELOG.md` and paste it as the release notes.
+
+The changelog entry includes:
+
+- Version header with compare changes link
+- Categorized changes (📖 Documentation, 🏡 Chore, etc.)
+- Commit links with hashes
+- Contributor credits
+
+### Publish Release
+
+Review and publish the release.
+
+</Steps>
+
+<Warning>
+Don't use GitHub's "Generate release notes" feature. The `CHANGELOG.md` generated by `changelogen` already contains the properly formatted release notes based on conventional commits.
+</Warning>
+
+## Manual Operations
+
+### Manual Changelog Generation
+
+```bash
+# Generate changelog from last tag
+bunx changelogen --bump
+
+# Generate changelog from specific commit
+bunx changelogen --bump --from abc123
+
+# Generate without committing
+bunx changelogen --bump --no-commit
+```
+
+### Manual Version Bump
+
+```bash
+# Edit package.json version
+npm version patch  # 0.0.7 -> 0.0.8
+npm version minor  # 0.0.7 -> 0.1.0
+npm version major  # 0.0.7 -> 1.0.0
+```
+
+## Troubleshooting
+
+<Accordion title="Workflow not creating PRs">
+
+Check GitHub Actions permissions:
+
+1. Go to **Settings → Actions → General**
+2. Ensure "Allow GitHub Actions to create and approve pull requests" is enabled
+3. Check workflow logs for errors
+
+</Accordion>
+
+<Accordion title="Changelog not generating">
+
+Verify changelogen configuration:
+
+1. Check `changelog.config.ts` exists and is valid
+2. Ensure commits follow conventional commit format
+3. Run `bunx changelogen --bump` manually to test
+
+</Accordion>
+
+<Accordion title="Version not bumping">
+
+Check package.json:
+
+1. Ensure `package.json` has a valid version field
+2. Verify the changelog workflow has write permissions
+3. Check workflow logs for errors during version bump
+
+</Accordion>
+
+## Best Practices
+
+1. **Use conventional commits**: Follow the commit message convention for automatic categorization
+2. **Review draft PRs**: Always review automated PRs before merging
+3. **Keep changelogs clean**: Format changelog with `oxfmt` for consistency
+4. **Tag releases**: Create Git tags matching package.json versions
+5. **Document breaking changes**: Use `!` suffix for breaking changes (e.g., `feat!:`)

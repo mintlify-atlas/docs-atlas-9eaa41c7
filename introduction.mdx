@@ -1,0 +1,145 @@
+---
+title: Welcome to ZeroStarter
+description: A modern, type-safe, and high-performance SaaS starter template built with a monorepo architecture.
+---
+
+# Welcome to ZeroStarter
+
+ZeroStarter is a production-ready SaaS starter template that combines modern web technologies with battle-tested architectural patterns. Built with a monorepo structure, it provides end-to-end type safety, modular packages, and a complete development workflow out of the box.
+
+<Note>
+  ZeroStarter is currently in **Release Candidate (RC)** status. All implemented features are stable and production-ready. We're actively adding new features and integrations.
+</Note>
+
+## Why ZeroStarter?
+
+**Architecture & Best Practices as a Service** — ZeroStarter isn't just a starter template, it's a complete blueprint for building production-ready SaaS applications with battle-tested patterns and practices.
+
+<CardGroup cols={2}>
+  <Card title="Modular Architecture" icon="cube">
+    Clean, plug-and-play packages that work independently or together. Swap components, extend functionality, or customize without breaking the system.
+  </Card>
+  
+  <Card title="End-to-End Type Safety" icon="shield-check">
+    Hono RPC ensures type safety from database to frontend. Catch errors at compile time, ship with confidence.
+  </Card>
+  
+  <Card title="Production-Ready Performance" icon="rocket">
+    Optimized with Bun runtime and Turborepo for blazing-fast development and builds.
+  </Card>
+  
+  <Card title="Beautiful UI Out of the Box" icon="palette">
+    Shadcn UI components with Tailwind CSS, ready to customize or use as-is.
+  </Card>
+  
+  <Card title="Enterprise-Grade Auth" icon="lock">
+    Better Auth integration with GitHub, Google, and more — fully configured and ready to extend.
+  </Card>
+  
+  <Card title="Comprehensive Documentation" icon="book">
+    Every pattern, practice, and decision documented with AI-optimized context.
+  </Card>
+</CardGroup>
+
+## Quick Links
+
+<CardGroup cols={3}>
+  <Card title="Quick Start" icon="bolt" href="/quickstart">
+    Get up and running in minutes with our step-by-step guide.
+  </Card>
+  
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed setup instructions including prerequisites and environment configuration.
+  </Card>
+  
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    Understand the tech stack and monorepo structure.
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Type-Safe API Client
+
+ZeroStarter uses [Hono RPC](https://hono.dev/docs/guides/rpc) to provide end-to-end type safety between backend and frontend:
+
+<CodeGroup>
+```typescript Backend (api/hono/src/index.ts)
+import { Hono } from "hono"
+
+const app = new Hono()
+  .basePath("/api")
+  .get("/health", (c) => {
+    const data = { message: "ok", version: "1.0.0" }
+    return c.json({ data })
+  })
+
+export type AppType = typeof app
+```
+
+```typescript Frontend (web/next/src/lib/api/client.ts)
+import type { AppType } from "@api/hono"
+import { hc } from "hono/client"
+
+const honoClient = hc<AppType>("http://localhost:4000")
+export const apiClient = honoClient.api
+
+// Fully typed request and response
+const res = await apiClient.health.$get()
+const { data } = await res.json() // TypeScript knows the shape!
+```
+</CodeGroup>
+
+### Clean Monorepo Structure
+
+```
+.
+├── api/
+│   └── hono/          # Backend API server (Hono)
+├── web/
+│   └── next/          # Frontend application (Next.js)
+└── packages/
+    ├── auth/          # Shared authentication logic (Better Auth)
+    ├── db/            # Database schema and Drizzle configuration
+    ├── env/           # Type-safe environment variables
+    └── tsconfig/      # Shared TypeScript configuration
+```
+
+### Modern Tech Stack
+
+- **Runtime**: [Bun](https://bun.sh) for blazing-fast performance
+- **Build System**: [Turborepo](https://turbo.build) for optimized monorepo builds
+- **Frontend**: [Next.js 16](https://nextjs.org) with React 19
+- **Backend**: [Hono](https://hono.dev) for lightweight, fast APIs
+- **Database**: [PostgreSQL](https://www.postgresql.org) with [Drizzle ORM](https://orm.drizzle.team)
+- **Authentication**: [Better Auth](https://better-auth.com) with social providers
+- **UI Components**: [Shadcn UI](https://ui.shadcn.com) with [Tailwind CSS](https://tailwindcss.com)
+- **Data Fetching**: [TanStack Query](https://tanstack.com/query/latest)
+- **Validation**: [Zod](https://zod.dev) for runtime type safety
+
+## What's Next?
+
+<Steps>
+  <Step title="Get Started">
+    Follow the [Quick Start guide](/quickstart) to set up your development environment.
+  </Step>
+  
+  <Step title="Understand the Architecture">
+    Learn about the [Architecture](/architecture) and how the pieces fit together.
+  </Step>
+  
+  <Step title="Build Your SaaS">
+    Start customizing and building your application with confidence.
+  </Step>
+</Steps>
+
+## Community & Support
+
+- **GitHub**: [nrjdalal/zerostarter](https://github.com/nrjdalal/zerostarter)
+- **X/Twitter**: [@nrjdalal](https://twitter.com/nrjdalal)
+- **Documentation**: [zerostarter.dev/docs](https://zerostarter.dev/docs)
+- **AI/LLM Docs**: [zerostarter.dev/llms.txt](https://zerostarter.dev/llms.txt)
+
+<Note>
+  Don't forget to star the repository on GitHub if you find ZeroStarter helpful!
+</Note>

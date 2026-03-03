@@ -1,0 +1,161 @@
+---
+title: Blog
+description: Manage blog content and articles.
+---
+
+## Overview
+
+Blog content is managed using Fumadocs and stored in `web/next/content/blog/`.
+
+## Content Structure
+
+- **Location**: `web/next/content/blog/`
+- **Format**: MDX files with frontmatter
+- **Configuration**: Defined in `web/next/source.config.ts`
+- **Navigation**: Managed in `web/next/content/blog/meta.json`
+
+## Creating a Blog Post
+
+<Steps>
+
+### Create MDX file
+
+Create a new `.mdx` file in `web/next/content/blog/`:
+
+```mdx web/next/content/blog/my-new-post.mdx
+---
+title: My New Post
+description: A brief description of my post.
+---
+
+## Introduction
+
+Your blog content goes here...
+```
+
+### Add frontmatter
+
+Include `title` and `description` in the frontmatter:
+
+- **`title`**: The post title (required)
+- **`description`**: A brief summary (required)
+
+### Write content
+
+Write your content using MDX syntax. You can use:
+
+- Markdown formatting
+- React components
+- Code blocks with syntax highlighting
+- Images and media
+
+### Add to navigation
+
+Add an entry to `web/next/content/blog/meta.json`:
+
+```json web/next/content/blog/meta.json
+{
+  "pages": [
+    "index",
+    "getting-started-zero-starter",
+    "type-safe-apis-hono-rpc",
+    "my-new-post"
+  ]
+}
+```
+
+<Note>
+The sequence matters - it determines the order pages appear in navigation.
+</Note>
+
+</Steps>
+
+## Configuration
+
+Blog source is configured in `web/next/source.config.ts`:
+
+```ts web/next/source.config.ts
+import { defineConfig, defineDocs } from "fumadocs-mdx/config"
+
+export const blog = defineDocs({
+  dir: "content/blog",
+  docs: {
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+})
+
+export default defineConfig()
+```
+
+### Key Configuration Options
+
+- **`dir`**: Directory containing blog content (`content/blog`)
+- **`includeProcessedMarkdown`**: Enables processed markdown for llms.txt endpoint
+
+## Navigation Structure
+
+Pages are listed in `web/next/content/blog/meta.json`:
+
+```json web/next/content/blog/meta.json
+{
+  "pages": [
+    "index",
+    "getting-started-zero-starter",
+    "type-safe-apis-hono-rpc",
+    "monorepo-architecture-saas",
+    "authentication-better-auth"
+  ]
+}
+```
+
+<Warning>
+The sequence matters! Pages appear in the navigation in the order specified in this array.
+</Warning>
+
+## MDX Features
+
+### Code Blocks
+
+```tsx
+import { useState } from "react"
+
+export function Counter() {
+  const [count, setCount] = useState(0)
+  return <button onClick={() => setCount(count + 1)}>Count: {count}</button>
+}
+```
+
+### Images
+
+```mdx
+![Alt text](https://example.com/image.png)
+```
+
+### Components
+
+You can import and use React components in your MDX:
+
+```mdx
+import { CustomComponent } from "@/components/custom"
+
+<CustomComponent prop="value" />
+```
+
+## Best Practices
+
+1. **Use descriptive file names**: `my-new-feature.mdx` instead of `post1.mdx`
+2. **Write clear descriptions**: Help readers understand what the post is about
+3. **Keep URLs clean**: File names become URL slugs
+4. **Update meta.json**: Always add new posts to the navigation
+5. **Use code blocks**: Include syntax highlighting for code examples
+6. **Add images**: Visual content improves engagement
+
+## Accessing Blog Posts
+
+Blog posts are accessible at:
+
+- **Web UI**: `/blog/post-name`
+- **AI-friendly**: `/blog/post-name.md` (markdown format for LLMs)
+- **Index**: `/blog.md` (list of all blog posts)
